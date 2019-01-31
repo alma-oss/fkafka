@@ -1,0 +1,56 @@
+[
+    {
+        "schema": 1,
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "correlation_id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "timestamp": "2018-02-01T14:45:22.044Z",
+        "event": "something_happened",
+        "domain": "domain",
+        "context": "context",
+        "purpose": "dev",
+        "version": "v1v0v0",
+        "zone": "arch",
+        "bucket": "perf-test",
+        "meta_data": {
+            "created_at": "2018-02-01T14:46:22.044Z"
+        },
+        "resource": {
+            "name": "resource-name",
+            "href": "http://domain-context-dev-v1v0v0.service.dev1-services.consul/path/42"
+        },
+        "key_data": {
+            "some_id": 42
+        },
+        "domain_data": {
+            "private": "data"
+        }
+    },
+    {
+        "schema": 1,
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "correlation_id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "timestamp": "2018-02-01T14:45:22.044Z",
+        "event": "something_happened",
+        "domain": "domain",
+        "context": "context",
+        "purpose": "dev",
+        "version": "v1v0v0",
+        "zone": "arch",
+        "bucket": "perf-test",
+        "meta_data": {
+            "created_at": "2018-02-01T14:46:22.044Z"
+        },
+        "resource": {
+            "name": "resource-name",
+            "href": "http://domain-context-dev-v1v0v0.service.dev1-services.consul/path/42/123"
+        },
+        "key_data": {
+            "some_other_id": 42,
+            "another_id": 123
+        },
+        "domain_data": {
+            "foo": "bar",
+            "bar": "boo"
+        }
+    }
+]

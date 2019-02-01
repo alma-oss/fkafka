@@ -11,7 +11,14 @@ let runDotNet cmd workingDir =
         DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
 
+let tee f a =
+    f a
+    a
+
 let sourceDir = "src"
+
+let nugetServer = "http://development-nugetserver-common-stable.service.devel1-services.consul:31794"
+let apiKey = "123456"
 
 Target.create "Clean" (fun _ ->
     !! "src/bin"
@@ -27,8 +34,16 @@ Target.create "Build" (fun _ ->
 Target.create "Release" (fun _ ->
     runDotNet "pack" sourceDir
 
+    let pushToNuget path =
+        sourceDir
+        |> runDotNet (sprintf "nuget push %s -s %s -k %s" path nugetServer apiKey)
+
     !! "src/**/bin/**/*.nupkg"
-    |> Seq.iter (Shell.moveFile "release")
+    |> Seq.iter (fun path ->
+        path
+        |> tee pushToNuget
+        |> Shell.moveFile "release"
+    )
 )
 
 Target.create "Watch" (fun _ ->

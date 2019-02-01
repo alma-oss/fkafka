@@ -5,9 +5,9 @@ Library for reading messages or producing messages to/from stream.
 
 ## Release
 1. Increment version in `src/Kafka.fsproj`
-2. Run `$ fake build target release`
-3. Move Kafka package (`Kafka.VERSION.nupkg`) from `./release` dir to the NugetServer packages dir
-4. Update `CHANGELOG.md`
+2. Update `CHANGELOG.md`
+3. Commit new version and tag it
+4. Run `$ fake build target release`
 
 ## Development
 ### Requirements

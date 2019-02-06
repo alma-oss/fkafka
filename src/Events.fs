@@ -6,16 +6,12 @@ open System
 // Events
 //
 
-type Metadata = {
-    CreatedAt: string
-}
-
 type Resource = {
     Name: string
     Href: string
 }
 
-type Event<'KeyData, 'DomainData> = {
+type Event<'KeyData, 'MetaData, 'DomainData> = {
     Schema: int
     Id: Guid
     CorrelationId: Guid
@@ -27,18 +23,18 @@ type Event<'KeyData, 'DomainData> = {
     Version: string
     Zone: string
     Bucket: string
-    MetaData: Metadata
-    Resource: Resource
+    Resource: Resource option
+    MetaData: 'MetaData
     KeyData: 'KeyData
     DomainData: 'DomainData
 }
 
 type RawData = RawData of FSharp.Data.JsonValue
 
-type BaseEvent = Event<RawData, RawData>
+type RawEvent = Event<RawData, RawData option, RawData option>
 
 [<RequireQualifiedAccessAttribute>]
-module BaseEvent =
+module RawEvent =
     open FSharp.Data
 
     type private Schema1 = JsonProvider<"schema/events.json", SampleIsList=true>
@@ -46,7 +42,7 @@ module BaseEvent =
     let private formatDateTime (dateTimeOffset: DateTimeOffset) =
         dateTimeOffset.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'")
 
-    let private parse message: BaseEvent =
+    let parse message: RawEvent =
         let event = message |> Schema1.Parse
 
         {
@@ -61,15 +57,13 @@ module BaseEvent =
             Version = event.Version
             Zone = event.Zone
             Bucket = event.Bucket
-            MetaData = {
-                CreatedAt = event.MetaData.CreatedAt |> formatDateTime
-            }
-            Resource = {
+            KeyData = RawData event.KeyData.JsonValue
+            Resource = Some {
                 Name = event.Resource.Name
                 Href = event.Resource.Href
             }
-            KeyData = RawData event.KeyData.JsonValue
-            DomainData = RawData event.DomainData.JsonValue
+            MetaData = Some (RawData event.MetaData.JsonValue)
+            DomainData = Some (RawData event.DomainData.JsonValue)
         }
 
     let messageReader onEvent =

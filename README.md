@@ -12,6 +12,8 @@ Where `$NUGET_SERVER_PATH` is the URL of nuget server
 - see http://consul-1.infra.pprod/ui/devel1-services/services/development-nugetServer-common-stable for detailed information (and port)
 
 ## Use
+
+### Handle raw event
 ```fs
 open Kafka
 
@@ -23,9 +25,51 @@ let configuration = {
     Topic = "my-topic"              // topic name
 }
 
-(fun baseEvent -> printfn "%A" baseEvent)   // on BaseEvent handler
-|> BaseEvent.messageReader                  // there are more available readers (see Kafka.{...}Reader)
+let onRawContent rawEvent = printfn "%A" rawEvent
+
+onRawContent                        // on RawEvent handler
+|> RawEvent.messageReader           // there are more available readers (see Kafka.{...}Reader)
 |> Consumer.consumeStream logMessage configuration incrementMessageCount
+```
+
+### Handle raw event with
+```fs
+open Kafka
+
+type DomainEvent =
+    // + concrete domain events
+    | Raw of RawEvent
+
+type DomainHandler = {
+    // + concrete domain event handlers
+    OnRawEvent: RawEvent -> unit
+}
+
+let defaultDomain = {
+    // + concrete domain event handlers
+    OnRawEvent = ignore
+}
+
+type DomainEventReader = MessageReader<DomainEvent>
+
+let DomainEventReader handler: DomainEventReader =
+    {
+        ParseEvent = RawEvent.parse >> DomainEvent.Raw  // parsing a message - if DomainEvent has more types, you have to parse message by your own
+        OnEvent = function
+            // + concrete domain event handlers
+            | Raw event -> event |> handler.OnRawEvent
+    }
+    |> ParsedMessageReader
+
+let runDomainWithHandler kafkaConfiguration =
+    { defaultDomain with
+        // + concrete domain event handlers
+
+        OnRawEvent = fun event ->
+            event.Event |> incrementCount
+    }
+    |> DomainEventReader
+    |> consumeStream ignore kafkaConfiguration id
 ```
 
 ## Release

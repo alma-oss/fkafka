@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 3.0.0 - 2019-02-07
 - Add `consumeStreamWithGroupId` function
 - Remove `incrementMessageCount` parameter of consume stream
 

@@ -31,7 +31,7 @@ module Producer =
         producer.Flush(TimeSpan.FromSeconds(10.0)) |> ignore
         ()
 
-    let private produceMessage (producer: Producer) (topic: string) message =
+    let produceMessage (producer: Producer) (topic: string) message =
         producer.BeginProduce(topic, message |> createMessage)
 
     let private flush (producer: Producer) =

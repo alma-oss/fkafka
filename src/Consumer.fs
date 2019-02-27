@@ -57,3 +57,22 @@ module Consumer =
     let consumeStreamWithGroupId log (configuration: Configuration) groupId (reader: MessageReader<_>): unit =
         Some groupId
         |> consume log configuration reader
+
+    let private tee f a =
+        f a
+        a
+
+    let consumeStreamToOffset (configuration: Configuration) maxOffset (reader: MessageReader<_>) =
+        use consumer = createConsumer configuration.BrokerList configuration.Topic None
+
+        let rec consumeToOffset currentOffset =
+            if currentOffset < maxOffset then
+                consumer.Consume()
+                |> tee (fun result -> result.Value |> readMessage reader)
+                |> fun result -> result.Offset.Value
+                |> consumeToOffset
+
+        try
+            consumeToOffset (int64 0)
+        finally
+            consumer.Close()

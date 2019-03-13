@@ -1,29 +1,50 @@
 namespace Kafka
 
 open System
+open ServiceIdentification
 
 //
 // Events
 //
+
+// Simple types
+
+type EventId = EventId of Guid
+module EventId =
+    let value (EventId eventId) = eventId
+
+type CorrelationId = CorrelationId of Guid
+module CorrelationId =
+    let value (CorrelationId correlationId) = correlationId
+
+type CausationId = CausationId of Guid
+module CausationId =
+    let value (CausationId causationId) = causationId
+
+type EventName = EventName of string
+module EventName =
+    let value (EventName eventName) = eventName
 
 type Resource = {
     Name: string
     Href: string
 }
 
+// Generic event
+
 type Event<'KeyData, 'MetaData, 'DomainData> = {
     Schema: int
-    Id: Guid
-    CorrelationId: Guid
-    CausationId: Guid
+    Id: EventId
+    CorrelationId: CorrelationId
+    CausationId: CausationId
     Timestamp: string
-    Event: string
-    Domain: string
-    Context: string
-    Purpose: string
-    Version: string
-    Zone: string
-    Bucket: string
+    Event: EventName
+    Domain: Domain
+    Context: Context
+    Purpose: Purpose
+    Version: Version
+    Zone: Zone
+    Bucket: Bucket
     Resource: Resource option
     MetaData: 'MetaData
     KeyData: 'KeyData
@@ -48,17 +69,17 @@ module RawEvent =
 
         {
             Schema = 1
-            Id = event.Id
-            CorrelationId = event.CorrelationId
-            CausationId = event.CausationId
+            Id = event.Id |> EventId
+            CorrelationId = event.CorrelationId |> CorrelationId
+            CausationId = event.CausationId |> CausationId
             Timestamp = event.Timestamp |> formatDateTime
-            Event = event.Event
-            Domain = event.Domain
-            Context = event.Context
-            Purpose = event.Purpose
-            Version = event.Version
-            Zone = event.Zone
-            Bucket = event.Bucket
+            Event = event.Event |> EventName
+            Domain = event.Domain |> Domain
+            Context = event.Context |> Context
+            Purpose = event.Purpose |> Purpose
+            Version = event.Version |> Version
+            Zone = event.Zone |> Zone
+            Bucket = event.Bucket |> Bucket
             KeyData = RawData event.KeyData.JsonValue
             Resource = Some {
                 Name = event.Resource.Name

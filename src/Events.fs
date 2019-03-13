@@ -20,6 +20,7 @@ module CorrelationId =
 type CausationId = CausationId of Guid
 module CausationId =
     let value (CausationId causationId) = causationId
+    let fromEventId = EventId.value >> CausationId
 
 type EventName = EventName of string
 module EventName =

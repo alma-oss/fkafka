@@ -15,6 +15,7 @@ type Event<'KeyData, 'MetaData, 'DomainData> = {
     Schema: int
     Id: Guid
     CorrelationId: Guid
+    CausationId: Guid
     Timestamp: string
     Event: string
     Domain: string
@@ -49,6 +50,7 @@ module RawEvent =
             Schema = 1
             Id = event.Id
             CorrelationId = event.CorrelationId
+            CausationId = event.CausationId
             Timestamp = event.Timestamp |> formatDateTime
             Event = event.Event
             Domain = event.Domain

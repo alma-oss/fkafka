@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `causation_id` to events
 
 ## 3.2.0 - 2019-02-27
 - Add `consumeStreamToOffset` function to `Consumer`

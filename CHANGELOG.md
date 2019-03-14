@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 4.2.0 - 2019-03-14
 - Allow `ServiceIdentifiaction` in  version `2.0.0`
 
 ## 4.1.0 - 2019-03-13

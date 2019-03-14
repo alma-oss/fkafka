@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Lmc.ServiceIdentification" Version="1.2.0" />
+    <PackageReference Include="Lmc.ServiceIdentification" Version="[1.2.0, 2.0.0]" />
   </ItemGroup>
 
 </Project>

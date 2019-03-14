@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Allow `ServiceIdentifiaction` in  version `2.0.0`
 
 ## 4.1.0 - 2019-03-13
 - Add `CausationId.fromEventId` function

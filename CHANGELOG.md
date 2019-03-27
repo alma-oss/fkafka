@@ -2,9 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix `consumeStreamToOffset` to read up to max offset (_`- 1`, because kafka counts offset from 0_)
+- Add `ConsoleCancelEventHandler` in `consume` stream, to close the consumer
 
 ## 4.2.0 - 2019-03-14
-- Allow `ServiceIdentifiaction` in  version `2.0.0`
+- Allow `ServiceIdentifiaction` in version `2.0.0`
 
 ## 4.1.0 - 2019-03-13
 - Add `CausationId.fromEventId` function

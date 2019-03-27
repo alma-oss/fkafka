@@ -22,6 +22,10 @@ module Consumer =
 
         consumer
 
+    let private closeConsumer log (consumer: Consumer) =
+        log "consumer closing ..."
+        consumer.Close()
+
     let private readMessage = function
         | DecodedMessageReader { ReadMessage = readMessage } -> readMessage
         | ParsedMessageReader { ParseEvent = parse; OnEvent = onEvent } -> parse >> onEvent
@@ -41,6 +45,10 @@ module Consumer =
         log "Connecting ..."
         use consumer = createConsumer configuration.BrokerList configuration.Topic groupId
 
+        Console.CancelKeyPress.Add <| fun _args ->
+            log "\ncanceled ..."
+            closeConsumer log consumer
+
         try
             logStartReading log groupId
             while true do
@@ -48,7 +56,7 @@ module Consumer =
                 |> (fun result -> result.Value)
                 |> readMessage reader
         finally
-            consumer.Close()
+            closeConsumer log consumer
 
     let consumeStream log (configuration: Configuration) (reader: MessageReader<_>): unit =
         None
@@ -66,7 +74,7 @@ module Consumer =
         use consumer = createConsumer configuration.BrokerList configuration.Topic None
 
         let rec consumeToOffset currentOffset =
-            if currentOffset < maxOffset then
+            if currentOffset < (maxOffset - int64 1) then
                 consumer.Consume()
                 |> tee (fun result -> result.Value |> readMessage reader)
                 |> fun result -> result.Offset.Value
@@ -75,4 +83,4 @@ module Consumer =
         try
             consumeToOffset (int64 0)
         finally
-            consumer.Close()
+            closeConsumer ignore consumer

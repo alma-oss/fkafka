@@ -6,7 +6,7 @@ module Consumer =
 
     type private Consumer = Consumer<Ignore, string>
 
-    let private createConsumer brokerList (topic: string) groupId: Consumer =
+    let internal createConsumer brokerList (topic: string) groupId: Consumer =
         let groupId =
             match groupId with
             | Some groupId -> groupId

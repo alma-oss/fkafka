@@ -4,7 +4,7 @@ module Admin =
     open System
     open Confluent.Kafka
 
-    let createAdmin brokerList =
+    let createAdmin (BrokerList brokerList) =
         new AdminClient(
             AdminClientConfig(
                 BootstrapServers = brokerList
@@ -23,6 +23,7 @@ module Admin =
                 if topic.Error.IsError then None
                 else Some topic.Topic
             )
+            |> Seq.map StreamName
             |> List.ofSeq
 
     let topicExists admin topic =

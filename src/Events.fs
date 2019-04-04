@@ -60,7 +60,7 @@ type RawEvent = Event<RawData, RawData option, RawData option>
 module RawEvent =
     open FSharp.Data
 
-    type private Schema1 = JsonProvider<"schema/events.json", SampleIsList=true>
+    type private Schema1 = JsonProvider<"src/schema/events.json", SampleIsList=true>
 
     let private formatDateTime (dateTimeOffset: DateTimeOffset) =
         dateTimeOffset.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'")

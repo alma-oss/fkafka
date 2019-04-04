@@ -6,14 +6,9 @@ module Consumer =
 
     type private Consumer = Consumer<Ignore, string>
 
-    let internal createConsumer brokerList (topic: string) groupId: Consumer =
-        let groupId =
-            match groupId with
-            | Some groupId -> groupId
-            | _ -> sprintf "consumer-%d" DateTime.Now.Ticks    // unique group id means, it will always starts from the beginning
-
+    let internal createConsumer (BrokerList brokerList) (StreamName topic) groupId: Consumer =
         let config = ConsumerConfig()
-        config.GroupId <- groupId
+        config.GroupId <- groupId |> GroupId.value
         config.BootstrapServers <- brokerList
         config.AutoOffsetReset <- AutoOffsetResetType.Earliest |> Nullable
 
@@ -31,13 +26,13 @@ module Consumer =
         | ParsedMessageReader { ParseEvent = parse; OnEvent = onEvent } -> parse >> onEvent
 
     let private logStartReading log groupId =
-        let stringOptionToString = function
-            | Some string -> string
-            | _ -> ""
+        let groupIdToLog = function
+            | Id groupId -> groupId
+            | Random -> ""
 
         groupId
-        |> Option.map (sprintf " with %s")
-        |> stringOptionToString
+        |> GroupId.map (sprintf " with %s")
+        |> groupIdToLog
         |> sprintf "Reading stream%s ..."
         |> log
 
@@ -59,11 +54,11 @@ module Consumer =
             closeConsumer log consumer
 
     let consumeStream log (configuration: Configuration) (reader: MessageReader<_>): unit =
-        None
+        GroupId.Random
         |> consume log configuration reader
 
     let consumeStreamWithGroupId log (configuration: Configuration) groupId (reader: MessageReader<_>): unit =
-        Some groupId
+        GroupId.Id groupId
         |> consume log configuration reader
 
     let private tee f a =
@@ -71,7 +66,7 @@ module Consumer =
         a
 
     let consumeStreamToOffset (configuration: Configuration) maxOffset (reader: MessageReader<_>) =
-        use consumer = createConsumer configuration.BrokerList configuration.Topic None
+        use consumer = createConsumer configuration.BrokerList configuration.Topic GroupId.Random
 
         let rec consumeToOffset currentOffset =
             if currentOffset < (maxOffset - int64 1) then

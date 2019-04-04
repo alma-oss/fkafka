@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `Admin` module with simple topic meta information
 
 ## 4.3.0 - 2019-03-27
 - Fix `consumeStreamToOffset` to read up to max offset (_`- 1`, because kafka counts offset from 0_)

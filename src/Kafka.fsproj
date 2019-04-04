@@ -13,6 +13,7 @@
     <Compile Include="Events.fs" />
     <Compile Include="Consumer.fs" />
     <Compile Include="Producer.fs" />
+    <Compile Include="Admin.fs" />
   </ItemGroup>
 
   <ItemGroup>

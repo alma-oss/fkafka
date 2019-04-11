@@ -20,7 +20,7 @@ module Producer =
             Value = message
         )
 
-    let produce configuration messages =
+    let produce (configuration: ConnectionConfiguration) messages =
         use producer = createProducer configuration.BrokerList
 
         messages

@@ -6,6 +6,30 @@
     - `BrokerList`
     - `StreamName`
     - `GroupId`
+- [**BC**] Split `Configuration` to common `ConnectionConfiguration` and `ConsumerConfiguration` and add module to simplify creating the `ConsumerConfiguration` record
+- Add parameters to the `ConsumerConfiguration`
+    - `GroupId` - to explicitly pass group id to the Consumer
+    - _optional_ `Logger` - to allow more complex Logger logic in the future
+    - _optional_ `Checker` - to allow resource checking in consuming
+    - _optional_ `ServiceStatus` - to allow mark service as `enabled`/`disabled`
+- **Consumer**
+    - [**BC**] Remove `log` parameter of `consumeStream` function, since `Logger` is already in the `Configuration`
+    - [**BC**] Rename `consumeStream*` functions which uses `Reader` to `read*`
+    - [**BC**] Remove `consumeStreamWithGroupId` function
+    - Add `consume` function which generates `sequence` of Events
+    - Allow consuming with custom Checker, which is called before consuming to ensure that Kafka cluster and topic is available
+        - When resource is not available, consuming will wait until it is available again to resume consuming
+    - Allow to mark service as `enabled`/`disabled` when resource availability changes
+    - Add `Message` type, `Message` has both the value and offset
+    - Add `consumeMessages` function to consume stream as sequence of `Message`s
+- **Admin**
+    - Add `createAdminFromHandle` function
+    - [**BC**] Remove `createAdminFromConsumer` function (_use `createAdminFromHandle` instead_)
+    - Add `isUp` function to check, whether a connection is up (_has any active brokers and not throw an exception_)
+- Add `Checker` module with
+    - common type (_interface_) for Kafka `Checker`
+    - basic checking functions for Kafka cluster and topic
+    - default `Checker` implementation
 
 ## 4.4.0 - 2019-04-04
 - Add `Admin` module with simple topic meta information

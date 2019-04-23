@@ -13,23 +13,42 @@ Where `$NUGET_SERVER_PATH` is the URL of nuget server
 
 ## Use
 
+### Consume RawEvent sequence
+```fs
+open Kafka
+
+let connection = {
+    BrokerList = BrokerList "127.0.0.1:9092,"  // list of all brokers
+    Topic = StreamName "my-topic"              // topic name
+}
+
+let configuration = ConsumerConfiguration.createWithConnection connection GroupId.Random
+
+Consumer.consume configuration RawEvent.Parse
+|> Seq.iter (fun event ->
+    printfn "Event: %A" event
+)
+```
+
 ### Handle raw event
 ```fs
 open Kafka
 
 let logMessage = printfn "%s"   // this function will be used for logging, it gets a simple message of what kafka lib is doing
-let incrementMessageCount = id  // this functin will be used for incrementing a message count, it gets raw event content (string) for each consumed event
+let incrementMessageCount = id  // this function will be used for incrementing a message count, it gets raw event content (string) for each consumed event
 
-let configuration = {
-    BrokerList = "127.0.0.1:9092,"  // list of all brokers
-    Topic = "my-topic"              // topic name
+let connection = {
+    BrokerList = BrokerList "127.0.0.1:9092,"  // list of all brokers
+    Topic = StreamName "my-topic"              // topic name
 }
+
+let configuration = ConsumerConfiguration.createWithConnection connection GroupId.Random
 
 let onRawContent rawEvent = printfn "%A" rawEvent
 
 onRawContent                        // on RawEvent handler
 |> RawEvent.messageReader           // there are more available readers (see Kafka.{...}Reader)
-|> Consumer.consumeStream logMessage configuration incrementMessageCount
+|> Consumer.read logMessage configuration incrementMessageCount
 ```
 
 ### Handle raw event with
@@ -69,7 +88,7 @@ let runDomainWithHandler kafkaConfiguration =
             event.Event |> incrementCount
     }
     |> DomainEventReader
-    |> consumeStream ignore kafkaConfiguration id
+    |> Consumer.read ignore kafkaConfiguration id
 ```
 
 ## Release

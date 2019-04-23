@@ -92,13 +92,35 @@ module Consumer =
             consumer.Subscribe topic
             consumer
 
+        let private createConsumerForLastMessage (StreamName topic) (config: ConsumerConfig): Consumer =
+            let consumer = ConsumerBuilder(config).Build()
+            let topicPartition = TopicPartition(topic, Partition(0))
+
+            let lastMessageOffset =
+                consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
+                |> fun offset ->
+                    if offset.High.IsSpecial
+                    then int64 0
+                    else offset.High.Value - 1L
+
+            consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
+            consumer
+
         let internal create brokerList topic groupId =
             createDefaultConfig brokerList groupId
             |> createConsumer topic
 
+        let internal createForLastMessage brokerList topic =
+            createDefaultConfig brokerList GroupId.Random
+            |> createConsumerForLastMessage topic
+
         let connect log configuration =
             log "Connecting ..."
             create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId
+
+        let connectLastMessage log configuration =
+            log "Connecting for last message ..."
+            createForLastMessage configuration.Connection.BrokerList configuration.Connection.Topic
 
         let close log (consumer: Consumer) =
             log "Consumer closing ..."
@@ -121,13 +143,28 @@ module Consumer =
             | Some { MarkAsEnabled = markAsEnabled; MarkAsDisabled = markAsDisabled } -> (markAsEnabled, markAsDisabled)
             | _ -> (ignore, ignore)
 
+        let private consume (consumer: Consumer) =
+            try
+                consumer.Consume()
+                |> (fun result ->
+                    if isNull result then None
+                    else Some result
+                )
+            with
+            | :? KafkaException as e ->
+                // exlicitly print error, because consume is in seq {} and it handles exceptions and just prints a message
+                eprintfn "ConsumeError: %A" e
+                raise e
+
         let consumeMessageValue (consumer: Consumer) =
-            consumer.Consume()
-            |> (fun result -> result.Value)
+            consumer
+            |> consume
+            |> Option.map (fun result -> result.Value)
 
         let consumeMessage (consumer: Consumer) =
-            consumer.Consume()
-            |> (fun result -> {
+            consumer
+            |> consume
+            |> Option.map (fun result -> {
                 Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
                 Value = result.Value
             })
@@ -143,7 +180,9 @@ module Consumer =
                     logStartReading log configuration.GroupId
 
                     while true do
-                        yield consumer |> consumeMessage
+                        let message: 'a option = consumer |> consumeMessage
+                        if message.IsSome then
+                            yield message.Value
                 finally
                     markAsDisabled()
                     Consumer.close log consumer
@@ -184,7 +223,9 @@ module Consumer =
                             waitForResource <- markAsEnabledAndRestartWaitTime ()
 
                             while true do
-                                yield consumer |> consumeMessage
+                                let message: 'a option = consumer |> consumeMessage
+                                if message.IsSome then
+                                    yield message.Value
                         | _ ->
                             waitForResource <- markAsDisableAndWaitForResources waitForResource
                 finally
@@ -217,6 +258,12 @@ module Consumer =
     let consumeMessages (configuration: ConsumerConfiguration): Message seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
+
+    let consumeLastMessage (configuration: ConsumerConfiguration): Message =
+        configuration
+        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
+        |> Seq.take 1
+        |> Seq.head
 
     let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
         configuration

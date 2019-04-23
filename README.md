@@ -92,7 +92,7 @@ let runDomainWithHandler kafkaConfiguration =
 ```
 
 ## Release
-1. Increment version in `src/Kafka.fsproj`
+1. Increment version in `Kafka.fsproj`
 2. Update `CHANGELOG.md`
 3. Commit new version and tag it
 4. Run `$ fake build target release`

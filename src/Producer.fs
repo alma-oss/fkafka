@@ -8,7 +8,7 @@ module Producer =
     type private Producer = Producer<Null, string>
     type private Message = Message<Null, string>
 
-    let createProducer brokerList =
+    let createProducer (BrokerList brokerList) =
         let config =
             ProducerConfig(
                 BootstrapServers = brokerList
@@ -20,18 +20,18 @@ module Producer =
             Value = message
         )
 
-    let produce configuration messages =
+    let produce (configuration: ConnectionConfiguration) messages =
         use producer = createProducer configuration.BrokerList
 
         messages
         |> List.iter (fun message ->
-            producer.BeginProduce(configuration.Topic, message |> createMessage)
+            producer.BeginProduce(configuration.Topic |> StreamName.value, message |> createMessage)
         )
 
-        producer.Flush(TimeSpan.FromSeconds(10.0)) |> ignore
-        ()
+        producer.Flush(TimeSpan.FromSeconds(10.0))
+        |> ignore
 
-    let produceMessage (producer: Producer) (topic: string) message =
+    let produceMessage (producer: Producer) (StreamName topic) message =
         producer.BeginProduce(topic, message |> createMessage)
 
     let private flush (producer: Producer) =

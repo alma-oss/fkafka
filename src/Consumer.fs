@@ -1,86 +1,227 @@
 namespace Kafka
 
+type ConsumerConfiguration = {
+    Connection: ConnectionConfiguration
+    GroupId: GroupId
+    Logger: Logger option
+    Checker: Checker option
+    ServiceStatus: ServiceStatus option
+}
+
+module ConsumerConfiguration =
+    let createWithConnection connection groupId =
+        {
+            Connection = connection
+            GroupId = groupId
+            Logger = None
+            Checker = None
+            ServiceStatus = None
+        }
+
+    let createWithDefaults brokerList topic =
+        createWithConnection {
+            BrokerList = brokerList
+            Topic = topic
+        }
+
+//
+// Kafka parser
+//
+
+type ParseEvent<'Event> = string -> 'Event
+
+//
+// Kafka readers
+//
+
+type DecodedMessageReader = {
+    ReadMessage: string -> unit
+}
+
+type ParsedMessageReader<'Event> = {
+    ParseEvent: ParseEvent<'Event>
+    OnEvent: 'Event -> unit
+}
+
+type MessageReader<'Event> =
+    | DecodedMessageReader of DecodedMessageReader
+    | ParsedMessageReader of ParsedMessageReader<'Event>
+
+//
+// Consumer
+//
+
 module Consumer =
     open System
     open Confluent.Kafka
 
+    [<AutoOpenAttribute>]
+    module GenericHelpers =
+        let tee f a =
+            f a
+            a
+
+        let doWith service action =
+            service
+            |> Option.map action
+            |> ignore
+
     type private Consumer = Consumer<Ignore, string>
 
-    let internal createConsumer brokerList (topic: string) groupId: Consumer =
-        let groupId =
-            match groupId with
-            | Some groupId -> groupId
-            | _ -> sprintf "consumer-%d" DateTime.Now.Ticks    // unique group id means, it will always starts from the beginning
+    [<Struct>]
+    type Message = {
+        Offset: int64 option
+        Value: string
+    }
 
-        let config = ConsumerConfig()
-        config.GroupId <- groupId
-        config.BootstrapServers <- brokerList
-        config.AutoOffsetReset <- AutoOffsetResetType.Earliest |> Nullable
+    module Message =
+        let value ({ Value = value }) = value
 
-        let consumer = new Consumer<Ignore, string>(config)
-        consumer.Subscribe topic
+    module private Consumer =
+        let create (BrokerList brokerList) (StreamName topic) groupId: Consumer =
+            let config = ConsumerConfig()
+            config.GroupId <- groupId |> GroupId.value
+            config.BootstrapServers <- brokerList
+            config.AutoOffsetReset <- AutoOffsetResetType.Earliest |> Nullable
 
-        consumer
+            let consumer = new Consumer(config)
+            consumer.Subscribe topic
 
-    let private closeConsumer log (consumer: Consumer) =
-        log "consumer closing ..."
-        consumer.Close()
+            consumer
+
+        let connect log configuration =
+            log "Connecting ..."
+            create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId
+
+        let close log (consumer: Consumer) =
+            log "Consumer closing ..."
+            consumer.Close()
+
+    module private Consume =
+        let private logStartReading log groupId =
+            let groupIdToLog = function
+                | Id groupId -> groupId
+                | Random -> ""
+
+            groupId
+            |> GroupId.map (sprintf " with %s")
+            |> groupIdToLog
+            |> sprintf "Reading stream%s ..."
+            |> log
+
+        let private serviceStatus configuration =
+            match configuration.ServiceStatus with
+            | Some { MarkAsEnabled = markAsEnabled; MarkAsDisabled = markAsDisabled } -> (markAsEnabled, markAsDisabled)
+            | _ -> (ignore, ignore)
+
+        let consumeMessageValue (consumer: Consumer) =
+            consumer.Consume()
+            |> (fun result -> result.Value)
+
+        let consumeMessage (consumer: Consumer) =
+            consumer.Consume()
+            |> (fun result -> {
+                Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
+                Value = result.Value
+            })
+
+        let private consumeMessageSeq consumeMessage log configuration =
+            let (markAsEnabled, markAsDisabled) = configuration |> serviceStatus
+
+            seq {
+                use consumer = configuration |> Consumer.connect log
+
+                try
+                    markAsEnabled()
+                    logStartReading log configuration.GroupId
+
+                    while true do
+                        yield consumer |> consumeMessage
+                finally
+                    markAsDisabled()
+                    Consumer.close log consumer
+            }
+
+        let private consumeMessageSeqWithChecker consumeMessage checker log configuration =
+            let maxRetries = checker.MaxRetries
+            let defaultWaitForResource = checker.WaitForResourceDefault
+
+            let mutable attempt = 1
+            let mutable waitForResource = defaultWaitForResource
+
+            let (markAsEnabled, markAsDisabled) = configuration |> serviceStatus
+
+            let markAsEnabledAndRestartWaitTime () =
+                markAsEnabled()
+                defaultWaitForResource
+
+            let markAsDisableAndWaitForResources waitForResource =
+                markAsDisabled()
+                let waitForResourceSeconds = int waitForResource
+
+                log (sprintf "[Attempt: %i/%i] Waiting for resource %s" attempt maxRetries (String.replicate waitForResourceSeconds "."))
+
+                attempt <- attempt + 1
+
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds (float waitForResourceSeconds))
+                Math.Min(waitForResourceSeconds * 2, 30) |> LanguagePrimitives.Int32WithMeasure<second>
+
+            seq {
+                use consumer = configuration |> Consumer.connect log
+
+                try
+                    while attempt <= maxRetries do
+                        match checker.CheckCluster consumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.Handle with
+                        | true, true ->
+                            logStartReading log configuration.GroupId
+                            waitForResource <- markAsEnabledAndRestartWaitTime ()
+
+                            while true do
+                                yield consumer |> consumeMessage
+                        | _ ->
+                            waitForResource <- markAsDisableAndWaitForResources waitForResource
+                finally
+                    markAsDisabled()
+                    consumer |> Consumer.close log
+            }
+
+        let seq consumeMessage configuration =
+            let log message =
+                (fun { Log = log } -> log message)
+                |> doWith configuration.Logger
+
+            match configuration.Checker with
+            | Some checker -> consumeMessageSeqWithChecker consumeMessage checker log configuration
+            | _ -> consumeMessageSeq consumeMessage log configuration
 
     let private readMessage = function
         | DecodedMessageReader { ReadMessage = readMessage } -> readMessage
         | ParsedMessageReader { ParseEvent = parse; OnEvent = onEvent } -> parse >> onEvent
 
-    let private logStartReading log groupId =
-        let stringOptionToString = function
-            | Some string -> string
-            | _ -> ""
+    //
+    // Public api
+    //
 
-        groupId
-        |> Option.map (sprintf " with %s")
-        |> stringOptionToString
-        |> sprintf "Reading stream%s ..."
-        |> log
+    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
+        configuration
+        |> Consume.seq Consume.consumeMessageValue
+        |> Seq.map parse
 
-    let private consume log configuration reader groupId =
-        log "Connecting ..."
-        use consumer = createConsumer configuration.BrokerList configuration.Topic groupId
+    let consumeMessages (configuration: ConsumerConfiguration): Message seq =
+        configuration
+        |> Consume.seq Consume.consumeMessage
 
-        Console.CancelKeyPress.Add <| fun _args ->
-            log "\ncanceled ..."
-            closeConsumer log consumer
+    let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
+        configuration
+        |> Consume.seq Consume.consumeMessageValue
+        |> Seq.iter (readMessage reader)
 
-        try
-            logStartReading log groupId
-            while true do
-                consumer.Consume()
-                |> (fun result -> result.Value)
-                |> readMessage reader
-        finally
-            closeConsumer log consumer
-
-    let consumeStream log (configuration: Configuration) (reader: MessageReader<_>): unit =
-        None
-        |> consume log configuration reader
-
-    let consumeStreamWithGroupId log (configuration: Configuration) groupId (reader: MessageReader<_>): unit =
-        Some groupId
-        |> consume log configuration reader
-
-    let private tee f a =
-        f a
-        a
-
-    let consumeStreamToOffset (configuration: Configuration) maxOffset (reader: MessageReader<_>) =
-        use consumer = createConsumer configuration.BrokerList configuration.Topic None
-
-        let rec consumeToOffset currentOffset =
-            if currentOffset < (maxOffset - int64 1) then
-                consumer.Consume()
-                |> tee (fun result -> result.Value |> readMessage reader)
-                |> fun result -> result.Offset.Value
-                |> consumeToOffset
-
-        try
-            consumeToOffset (int64 0)
-        finally
-            closeConsumer ignore consumer
+    let readToOffset (configuration: ConsumerConfiguration) maxOffset (reader: MessageReader<'Event>) =
+        configuration
+        |> consumeMessages
+        |> Seq.takeWhile (fun message ->
+            match message.Offset with
+            | Some currentOffset -> currentOffset < (maxOffset - int64 1)
+            | _ -> true
+        )
+        |> Seq.iter (Message.value >> readMessage reader)

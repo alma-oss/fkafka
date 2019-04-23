@@ -1,23 +1,40 @@
 namespace Kafka
 
 //
-// Kafka readers
+// Common
 //
 
-type DecodedMessageReader = {
-    ReadMessage: string -> unit
+[<Measure>] type second
+
+type BrokerList = BrokerList of string
+type StreamName = StreamName of string
+
+module StreamName =
+    let value (StreamName streamName) = streamName
+
+type GroupId =
+    | Random
+    | Id of string
+
+module GroupId =
+    let map f = function
+        | Id groupId -> groupId |> f |> Id
+        | Random -> Random
+
+    let value = function
+        | Id groupId -> groupId
+        | Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
+
+type ServiceStatus = {
+    MarkAsEnabled: unit -> unit
+    MarkAsDisabled: unit -> unit
 }
 
-type ParsedMessageReader<'Event> = {
-    ParseEvent : string -> 'Event
-    OnEvent: 'Event -> unit
+type Logger = {
+    Log: string -> unit
 }
 
-type MessageReader<'Event> =
-    | DecodedMessageReader of DecodedMessageReader
-    | ParsedMessageReader of ParsedMessageReader<'Event>
-
-type Configuration = {
-    BrokerList: string
-    Topic: string
+type ConnectionConfiguration = {
+    BrokerList: BrokerList
+    Topic: StreamName
 }

@@ -66,7 +66,7 @@ module Consumer =
             |> Option.map action
             |> ignore
 
-    type private Consumer = Consumer<Ignore, string>
+    type private Consumer = IConsumer<Ignore, string>
 
     [<Struct>]
     type Message = {
@@ -77,17 +77,24 @@ module Consumer =
     module Message =
         let value ({ Value = value }) = value
 
-    module private Consumer =
-        let create (BrokerList brokerList) (StreamName topic) groupId: Consumer =
+    module internal Consumer =
+        let private createDefaultConfig (BrokerList brokerList) groupId =
             let config = ConsumerConfig()
             config.GroupId <- groupId |> GroupId.value
             config.BootstrapServers <- brokerList
-            config.AutoOffsetReset <- AutoOffsetResetType.Earliest |> Nullable
+            config.AutoOffsetReset <- AutoOffsetReset.Earliest |> Nullable
 
-            let consumer = new Consumer(config)
+            config
+
+        let private createConsumer (StreamName topic) (config: ConsumerConfig): Consumer =
+            let consumer = ConsumerBuilder(config).Build()
+
             consumer.Subscribe topic
-
             consumer
+
+        let internal create brokerList topic groupId =
+            createDefaultConfig brokerList groupId
+            |> createConsumer topic
 
         let connect log configuration =
             log "Connecting ..."
@@ -125,11 +132,11 @@ module Consumer =
                 Value = result.Value
             })
 
-        let private consumeMessageSeq consumeMessage log configuration =
+        let private consumeMessageSeq connect consumeMessage log configuration =
             let (markAsEnabled, markAsDisabled) = configuration |> serviceStatus
 
             seq {
-                use consumer = configuration |> Consumer.connect log
+                use consumer: Consumer = configuration |> connect log
 
                 try
                     markAsEnabled()
@@ -142,7 +149,7 @@ module Consumer =
                     Consumer.close log consumer
             }
 
-        let private consumeMessageSeqWithChecker consumeMessage checker log configuration =
+        let private consumeMessageSeqWithChecker connect consumeMessage checker log configuration =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
@@ -167,7 +174,7 @@ module Consumer =
                 Math.Min(waitForResourceSeconds * 2, 30) |> LanguagePrimitives.Int32WithMeasure<second>
 
             seq {
-                use consumer = configuration |> Consumer.connect log
+                use consumer: Consumer = configuration |> connect log
 
                 try
                     while attempt <= maxRetries do
@@ -185,14 +192,14 @@ module Consumer =
                     consumer |> Consumer.close log
             }
 
-        let seq consumeMessage configuration =
+        let seq connect consumeMessage configuration =
             let log message =
                 (fun { Log = log } -> log message)
                 |> doWith configuration.Logger
 
             match configuration.Checker with
-            | Some checker -> consumeMessageSeqWithChecker consumeMessage checker log configuration
-            | _ -> consumeMessageSeq consumeMessage log configuration
+            | Some checker -> consumeMessageSeqWithChecker connect consumeMessage checker log configuration
+            | _ -> consumeMessageSeq connect consumeMessage log configuration
 
     let private readMessage = function
         | DecodedMessageReader { ReadMessage = readMessage } -> readMessage
@@ -204,16 +211,16 @@ module Consumer =
 
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
         configuration
-        |> Consume.seq Consume.consumeMessageValue
+        |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.map parse
 
     let consumeMessages (configuration: ConsumerConfiguration): Message seq =
         configuration
-        |> Consume.seq Consume.consumeMessage
+        |> Consume.seq Consumer.connect Consume.consumeMessage
 
     let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
         configuration
-        |> Consume.seq Consume.consumeMessageValue
+        |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.iter (readMessage reader)
 
     let readToOffset (configuration: ConsumerConfiguration) maxOffset (reader: MessageReader<'Event>) =

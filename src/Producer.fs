@@ -5,15 +5,15 @@ module Producer =
     open System.Collections.Concurrent
     open Confluent.Kafka
 
-    type private Producer = Producer<Null, string>
+    type private Producer = IProducer<Null, string>
     type private Message = Message<Null, string>
 
-    let createProducer (BrokerList brokerList) =
+    let createProducer (BrokerList brokerList): Producer =
         let config =
             ProducerConfig(
                 BootstrapServers = brokerList
             )
-        new Producer(config)
+        ProducerBuilder(config).Build()
 
     let private createMessage message =
         Message(
@@ -25,14 +25,14 @@ module Producer =
 
         messages
         |> List.iter (fun message ->
-            producer.BeginProduce(configuration.Topic |> StreamName.value, message |> createMessage)
+            producer.Produce(configuration.Topic |> StreamName.value, message |> createMessage)
         )
 
         producer.Flush(TimeSpan.FromSeconds(10.0))
         |> ignore
 
     let produceMessage (producer: Producer) (StreamName topic) message =
-        producer.BeginProduce(topic, message |> createMessage)
+        producer.Produce(topic, message |> createMessage)
 
     let private flush (producer: Producer) =
         producer.Flush(TimeSpan.FromSeconds(10.0))

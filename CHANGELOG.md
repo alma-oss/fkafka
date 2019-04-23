@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update `Confluent.Kafka` library to the most up to date version `1.0.0-RC6`
 
 ## 5.0.0 - 2019-04-23
 - [**BC**] Add more common types

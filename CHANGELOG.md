@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 5.1.0 - 2019-04-24
 - Update `Confluent.Kafka` library to the most up to date version `1.0.0-RC6`
 - Add `Consumer` function `consumeLastMessage`, which reads last message of the given topic, by the highest offset
 

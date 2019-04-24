@@ -82,12 +82,24 @@ module RawEvent =
             Zone = event.Zone |> Zone
             Bucket = event.Bucket |> Bucket
             KeyData = RawData event.KeyData.JsonValue
-            Resource = Some {
-                Name = event.Resource.Name
-                Href = event.Resource.Href
-            }
-            MetaData = Some (RawData event.MetaData.JsonValue)
-            DomainData = Some (RawData event.DomainData.JsonValue)
+            Resource =
+                event.Resource
+                |> Option.map (fun resource ->
+                    {
+                        Name = resource.Name
+                        Href = resource.Href
+                    }
+                )
+            MetaData =
+                event.MetaData
+                |> Option.map (fun metaData ->
+                    RawData metaData.JsonValue
+                )
+            DomainData =
+                event.DomainData
+                |> Option.map (fun domainData ->
+                    RawData domainData.JsonValue
+                )
         }
 
     let messageReader onEvent =

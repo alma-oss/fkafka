@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 5.1.3 - 2019-04-24
 - Fix `RawEvent` funcion `parse` to correctly parse optional keys
 
 ## 5.1.2 - 2019-04-24

@@ -4,15 +4,17 @@ module Admin =
     open System
     open Confluent.Kafka
 
+    type AdminClient = IAdminClient
+
     let createAdmin (BrokerList brokerList) =
-        new AdminClient(
+        AdminClientBuilder(
             AdminClientConfig(
                 BootstrapServers = brokerList
             )
-        )
+        ).Build()
 
     let createAdminFromHandle (handle: Handle) =
-        new AdminClient(handle)
+        DependentAdminClientBuilder(handle).Build()
 
     let getAllTopics (admin: AdminClient) =
         admin.GetMetadata(TimeSpan.FromSeconds 5.0)

@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix `RawEvent` funcion `parse` to correctly parse optional keys
 
 ## 5.1.2 - 2019-04-24
 - Fix `Consumer` function `consumeLastMessage` to return `None` if the highest offset is `0`

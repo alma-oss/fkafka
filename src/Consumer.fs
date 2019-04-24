@@ -100,7 +100,7 @@ module Consumer =
                 consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
                 |> fun offset ->
                     if offset.High.IsSpecial
-                    then int64 0
+                    then failwithf "There is no last message."
                     else offset.High.Value - 1L
 
             consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
@@ -259,11 +259,15 @@ module Consumer =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
 
-    let consumeLastMessage (configuration: ConsumerConfiguration): Message =
-        configuration
-        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-        |> Seq.take 1
-        |> Seq.head
+    let consumeLastMessage (configuration: ConsumerConfiguration): Message option =
+        try
+            configuration
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
+            |> Seq.take 1
+            |> Seq.head
+            |> Some
+        with
+        | _ -> None
 
     let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
         configuration

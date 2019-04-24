@@ -99,7 +99,7 @@ module Consumer =
             let lastMessageOffset =
                 consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
                 |> fun offset ->
-                    if offset.High.IsSpecial
+                    if offset.High.IsSpecial || offset.High.Value = 0L
                     then failwithf "There is no last message."
                     else offset.High.Value - 1L
 

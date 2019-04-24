@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix `Consumer` function `consumeLastMessage` to return `None` if the highest offset is `0`
 
 ## 5.1.1 - 2019-04-24
 - Fix `Consumer` function `consumeLastMessage` to returns `Message option` with `None` if there is no last message

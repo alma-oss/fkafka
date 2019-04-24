@@ -54,5 +54,20 @@
             "foo": "bar",
             "bar": "boo"
         }
+    },
+    {
+        "schema": 1,
+        "id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "correlation_id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "causation_id": "1db372d2-3617-4cbc-a8d1-e7ab6f3b8ad8",
+        "timestamp": "2018-02-01T14:45:22.044Z",
+        "event": "something_happened",
+        "domain": "domain",
+        "context": "context",
+        "purpose": "dev",
+        "version": "v1v0v0",
+        "zone": "arch",
+        "bucket": "perf-test",
+        "key_data": {}
     }
 ]

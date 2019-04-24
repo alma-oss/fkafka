@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 5.1.1 - 2019-04-24
 - Fix `Consumer` function `consumeLastMessage` to returns `Message option` with `None` if there is no last message
 
 ## 5.1.0 - 2019-04-24

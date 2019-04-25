@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 5.2.0 - 2019-04-25
 - Add `Producer` function `produceSingleMessage` to produce a message and flush right away, so producer can be safely disposed
 
 ## 5.1.3 - 2019-04-24

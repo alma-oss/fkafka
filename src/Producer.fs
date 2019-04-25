@@ -5,6 +5,10 @@ module Producer =
     open System.Collections.Concurrent
     open Confluent.Kafka
 
+    let private tee f a =
+        f a
+        a
+
     type private Producer = IProducer<Null, string>
     type private Message = Message<Null, string>
 
@@ -35,8 +39,12 @@ module Producer =
         producer.Produce(topic, message |> createMessage)
 
     let private flush (producer: Producer) =
-        producer.Flush(TimeSpan.FromSeconds(10.0))
-        |> ignore
+        producer.Flush()
+
+    let produceSingleMessage (producer: Producer) topic message =
+        producer
+        |> (tee (fun producer -> produceMessage producer topic message))
+        |> flush
 
     let private batch = new ConcurrentQueue<string>()
 

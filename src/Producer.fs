@@ -42,6 +42,8 @@ module Producer =
         Topic: StreamName
     }
 
+    type NotConnectedProducer = private NotConnectedProducer of (unit -> TopicProducer)
+
     module private Producer =
         let createProducer (BrokerList brokerList): Producer =
             let config =
@@ -87,13 +89,20 @@ module Producer =
 
         let flush (producer: Producer) =
             producer.Flush()
-        
+
         let close (producer: Producer) =
             producer.Dispose()
+
+    //
+    // Public Producer functions
+    //
 
     let createProducer = Producer.create
     let createUniversalProducer = Producer.createProducer
 
+    let prepareProducer configuration = NotConnectedProducer (fun () -> createProducer configuration)
+
+    let connect (NotConnectedProducer create) = create()
     let flush = Producer.flush
     let close = Producer.close
 

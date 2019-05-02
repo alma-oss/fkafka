@@ -4,12 +4,20 @@
 ## Unreleased
 - Add `Consumer` function `consumeLast` to consume last and parse it to the specific Event type
 - Make `Producer` type public
+- Refactor **Producer**
+    - [**BC**] remove function `produceBatch`
+    - [**BC**] remove function `produce`
+    - [**BC**] rename function `produceMessage` to `produce`
+    - [**BC**] rename function `produceSingleMessage` to `produceSingle`
+    - Add `ProducerConfiguration`
+    - Add `flush` function to send all remaining messages
+    - [**TODO**]
 
 ## 5.2.0 - 2019-04-25
 - Add `Producer` function `produceSingleMessage` to produce a message and flush right away, so producer can be safely disposed
 
 ## 5.1.3 - 2019-04-24
-- Fix `RawEvent` funcion `parse` to correctly parse optional keys
+- Fix `RawEvent` function `parse` to correctly parse optional keys
 
 ## 5.1.2 - 2019-04-24
 - Fix `Consumer` function `consumeLastMessage` to return `None` if the highest offset is `0`

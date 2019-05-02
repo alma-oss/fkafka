@@ -55,17 +55,6 @@ module Consumer =
     open System
     open Confluent.Kafka
 
-    [<AutoOpenAttribute>]
-    module GenericHelpers =
-        let tee f a =
-            f a
-            a
-
-        let doWith service action =
-            service
-            |> Option.map action
-            |> ignore
-
     type private Consumer = IConsumer<Ignore, string>
 
     [<Struct>]
@@ -138,11 +127,6 @@ module Consumer =
             |> sprintf "Reading stream%s ..."
             |> log
 
-        let private serviceStatus configuration =
-            match configuration.ServiceStatus with
-            | Some { MarkAsEnabled = markAsEnabled; MarkAsDisabled = markAsDisabled } -> (markAsEnabled, markAsDisabled)
-            | _ -> (ignore, ignore)
-
         let private consume (consumer: Consumer) =
             try
                 consumer.Consume()
@@ -170,13 +154,13 @@ module Consumer =
             })
 
         let private consumeMessageSeq connect consumeMessage log configuration =
-            let (markAsEnabled, markAsDisabled) = configuration |> serviceStatus
+            let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve
 
             seq {
                 use consumer: Consumer = configuration |> connect log
 
                 try
-                    markAsEnabled()
+                    markAsEnabled |> MarkAsEnabled.execute
                     logStartReading log configuration.GroupId
 
                     while true do
@@ -184,7 +168,7 @@ module Consumer =
                         if message.IsSome then
                             yield message.Value
                 finally
-                    markAsDisabled()
+                    markAsDisabled |> MarkAsDisabled.execute
                     Consumer.close log consumer
             }
 
@@ -192,25 +176,14 @@ module Consumer =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
-            let mutable attempt = 1
+            let mutable attempt = 1<attempt>
             let mutable waitForResource = defaultWaitForResource
 
-            let (markAsEnabled, markAsDisabled) = configuration |> serviceStatus
+            let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve
 
             let markAsEnabledAndRestartWaitTime () =
-                markAsEnabled()
+                markAsEnabled |> MarkAsEnabled.execute
                 defaultWaitForResource
-
-            let markAsDisableAndWaitForResources waitForResource =
-                markAsDisabled()
-                let waitForResourceSeconds = int waitForResource
-
-                log (sprintf "[Attempt: %i/%i] Waiting for resource %s" attempt maxRetries (String.replicate waitForResourceSeconds "."))
-
-                attempt <- attempt + 1
-
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds (float waitForResourceSeconds))
-                Math.Min(waitForResourceSeconds * 2, 30) |> LanguagePrimitives.Int32WithMeasure<second>
 
             seq {
                 use consumer: Consumer = configuration |> connect log
@@ -227,16 +200,17 @@ module Consumer =
                                 if message.IsSome then
                                     yield message.Value
                         | _ ->
-                            waitForResource <- markAsDisableAndWaitForResources waitForResource
+                            let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
+
+                            attempt <- currentAttempt
+                            waitForResource <- waitFor
                 finally
-                    markAsDisabled()
+                    markAsDisabled |> MarkAsDisabled.execute
                     consumer |> Consumer.close log
             }
 
         let seq connect consumeMessage configuration =
-            let log message =
-                (fun { Log = log } -> log message)
-                |> doWith configuration.Logger
+            let log = configuration.Logger |> Logger.resolve
 
             match configuration.Checker with
             | Some checker -> consumeMessageSeqWithChecker connect consumeMessage checker log configuration

@@ -1,4 +1,5 @@
 namespace Kafka
+open Metrics.ServiceStatus
 
 //
 // Common
@@ -30,19 +31,11 @@ module GroupId =
 // Service Status
 //
 
-type MarkAsEnabled = MarkAsEnabled of (unit -> unit)
-type MarkAsDisabled = MarkAsDisabled of (unit -> unit)
-
-module internal MarkAsEnabled =
-    let execute (MarkAsEnabled f) = f()
-
 module internal MarkAsDisabled =
     open System
 
-    let execute (MarkAsDisabled f) = f()
-
     let executeAndWait log (attempt: int<attempt>) (maxRetries: int<attempt>) markAsDisabled (waitFor: int<second>) =
-        markAsDisabled |> execute
+        markAsDisabled |> MarkAsDisabled.execute
         let waitForSeconds = int waitFor
 
         log <| sprintf "[Attempt: %i/%i] Waiting for resource %s" attempt maxRetries (String.replicate waitForSeconds ".")
@@ -52,11 +45,6 @@ module internal MarkAsDisabled =
         let currentAttempt = attempt + 1<attempt>
 
         (currentAttempt, nextTimeWaitFor)
-
-type ServiceStatus = {
-    MarkAsEnabled: MarkAsEnabled
-    MarkAsDisabled: MarkAsDisabled
-}
 
 module internal ServiceStatus =
     let resolve = function

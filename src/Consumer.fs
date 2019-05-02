@@ -1,4 +1,5 @@
 namespace Kafka
+open Metrics.ServiceStatus
 
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration

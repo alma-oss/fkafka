@@ -269,6 +269,18 @@ module Consumer =
         with
         | _ -> None
 
+    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event option =
+        try
+            configuration
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
+            |> Seq.take 1
+            |> Seq.head
+            |> Message.value
+            |> parse
+            |> Some
+        with
+        | _ -> None
+
     let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue

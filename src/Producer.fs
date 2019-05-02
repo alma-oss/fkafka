@@ -9,7 +9,7 @@ module Producer =
         f a
         a
 
-    type private Producer = IProducer<Null, string>
+    type Producer = IProducer<Null, string>
     type private Message = Message<Null, string>
 
     let createProducer (BrokerList brokerList): Producer =

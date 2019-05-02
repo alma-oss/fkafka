@@ -3,6 +3,7 @@
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
 - Add `Consumer` function `consumeLast` to consume last and parse it to the specific Event type
+- Make `Producer` type public
 
 ## 5.2.0 - 2019-04-25
 - Add `Producer` function `produceSingleMessage` to produce a message and flush right away, so producer can be safely disposed

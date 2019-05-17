@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 6.0.0 - 2019-05-17
 - Add `Consumer` function `consumeLast` to consume last and parse it to the specific Event type
 - Make `Producer` type public
 - Refactor **Producer**

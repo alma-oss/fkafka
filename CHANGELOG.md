@@ -5,13 +5,18 @@
 - Add `Consumer` function `consumeLast` to consume last and parse it to the specific Event type
 - Make `Producer` type public
 - Refactor **Producer**
-    - [**BC**] remove function `produceBatch`
-    - [**BC**] remove function `produce`
-    - [**BC**] rename function `produceMessage` to `produce`
-    - [**BC**] rename function `produceSingleMessage` to `produceSingle`
+    - [**BC**] Remove function `produceBatch`
+    - [**BC**] Remove function `produce`
+    - [**BC**] Rename function `produceMessage` to `produce`
+    - [**BC**] Rename function `produceSingleMessage` to `produceSingle`
+    - [**BC**] Rename function `createProducer` to `createUniversalProducer`
     - Add `ProducerConfiguration`
     - Add `flush` function to send all remaining messages
-    - [**TODO**]
+    - Add `produceTo` function to keep the previous implementation, with universal producer
+    - Add `prepareProducer` function to prepare producer (_lazy create producer_)
+    - Add `TopicProducer` type to pack a producer with its topic
+    - Add `NotConnectedProducer` type to allow lazy creation and later connection
+- [**BC**] Make Checker retries typed as `attempt`
 
 ## 5.2.0 - 2019-04-25
 - Add `Producer` function `produceSingleMessage` to produce a message and flush right away, so producer can be safely disposed

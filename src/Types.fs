@@ -77,7 +77,10 @@ type ConnectionConfiguration = {
     Topic: StreamName
 }
 
-// todo move elsewhere?
+//
+// Utilities
+//
+
 [<AutoOpenAttribute>]
 module internal GenericHelpers =
     let tee f a =

@@ -23,7 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Lmc.ServiceIdentification" Version="[1.2, 2.0]" />
+    <PackageReference Include="Lmc.ServiceIdentification" Version="2.0" />
+    <PackageReference Include="Lmc.Metrics" Version="2.0" />
   </ItemGroup>
 
 </Project>

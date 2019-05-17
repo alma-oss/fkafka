@@ -2,12 +2,27 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `Consumer` function `consumeLast` to consume last and parse it to the specific Event type
+- Make `Producer` type public
+- Refactor **Producer**
+    - [**BC**] Remove function `produceBatch`
+    - [**BC**] Remove function `produce`
+    - [**BC**] Rename function `produceMessage` to `produce`
+    - [**BC**] Rename function `produceSingleMessage` to `produceSingle`
+    - [**BC**] Rename function `createProducer` to `createUniversalProducer`
+    - Add `ProducerConfiguration`
+    - Add `flush` function to send all remaining messages
+    - Add `produceTo` function to keep the previous implementation, with universal producer
+    - Add `prepareProducer` function to prepare producer (_lazy create producer_)
+    - Add `TopicProducer` type to pack a producer with its topic
+    - Add `NotConnectedProducer` type to allow lazy creation and later connection
+- [**BC**] Make Checker retries typed as `attempt`
 
 ## 5.2.0 - 2019-04-25
 - Add `Producer` function `produceSingleMessage` to produce a message and flush right away, so producer can be safely disposed
 
 ## 5.1.3 - 2019-04-24
-- Fix `RawEvent` funcion `parse` to correctly parse optional keys
+- Fix `RawEvent` function `parse` to correctly parse optional keys
 
 ## 5.1.2 - 2019-04-24
 - Fix `Consumer` function `consumeLastMessage` to return `None` if the highest offset is `0`

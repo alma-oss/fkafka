@@ -18,18 +18,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../fmetrics/Metrics.fsproj">
-      <Name>Metrics.fsproj</Name>
-    </ProjectReference>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Confluent.Kafka" Version="1.0.0-RC6" />
     <PackageReference Include="FSharp.Data" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Lmc.ServiceIdentification" Version="2.0" />
+    <PackageReference Include="Lmc.Metrics" Version="2.0" />
   </ItemGroup>
 
 </Project>

@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 6.1.0 - 2019-05-22
 - Add `CommonEvent` type to allow common operations above all events without any specific data.
 - Add `Event.toCommon` function to transform a generic `Event` into `CommonEvent`
 

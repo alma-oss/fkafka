@@ -52,6 +52,40 @@ type Event<'KeyData, 'MetaData, 'DomainData> = {
     DomainData: 'DomainData
 }
 
+type CommonEvent = {
+    Schema: int
+    Id: EventId
+    CorrelationId: CorrelationId
+    CausationId: CausationId
+    Timestamp: string
+    Event: EventName
+    Domain: Domain
+    Context: Context
+    Purpose: Purpose
+    Version: Version
+    Zone: Zone
+    Bucket: Bucket
+    Resource: Resource option
+}
+
+module Event =
+    let toCommon (event: Event<'KeyData, 'MetaData, 'DomainData>) =
+        {
+            Schema = event.Schema
+            Id = event.Id
+            CorrelationId = event.CorrelationId
+            CausationId = event.CausationId
+            Timestamp = event.Timestamp
+            Event = event.Event
+            Domain = event.Domain
+            Context = event.Context
+            Purpose = event.Purpose
+            Version = event.Version
+            Zone = event.Zone
+            Bucket = event.Bucket
+            Resource = event.Resource
+        }
+
 type RawData = RawData of FSharp.Data.JsonValue
 
 type RawEvent = Event<RawData, RawData option, RawData option>

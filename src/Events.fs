@@ -68,6 +68,7 @@ type CommonEvent = {
     Resource: Resource option
 }
 
+[<RequireQualifiedAccess>]
 module Event =
     let toCommon (event: Event<'KeyData, 'MetaData, 'DomainData>) =
         {
@@ -90,7 +91,7 @@ type RawData = RawData of FSharp.Data.JsonValue
 
 type RawEvent = Event<RawData, RawData option, RawData option>
 
-[<RequireQualifiedAccessAttribute>]
+[<RequireQualifiedAccess>]
 module RawEvent =
     open FSharp.Data
 
@@ -142,3 +143,7 @@ module RawEvent =
             OnEvent = onEvent
         }
         |> ParsedMessageReader
+
+    let toCommon (event: RawEvent) =
+        event
+        |> Event.toCommon

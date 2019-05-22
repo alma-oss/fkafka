@@ -81,7 +81,7 @@ type ConnectionConfiguration = {
 // Utilities
 //
 
-[<AutoOpenAttribute>]
+[<AutoOpen>]
 module internal GenericHelpers =
     let tee f a =
         f a

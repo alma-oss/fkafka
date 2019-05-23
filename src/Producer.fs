@@ -79,6 +79,10 @@ module Producer =
                         attempt <- currentAttempt
                         waitForResource <- waitFor
             }
+            |> tee (fun producers ->
+                if producers |> Seq.isEmpty then
+                    failwithf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
+            )
             |> Seq.take 1
             |> Seq.head
 

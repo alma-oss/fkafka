@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Improve error when no producer is connected.
 
 ## 6.2.0 - 2019-05-22
 - Add `RawEvent.toCommon` alias function for `Event.toCommon`.

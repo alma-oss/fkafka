@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 6.3.1 - 2019-05-24
 - Fix consume with error handling, to raise a proper exception, when connection could not be established.
 
 ## 6.3.0 - 2019-05-23

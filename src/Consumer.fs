@@ -1,5 +1,7 @@
 namespace Kafka
+
 open Metrics.ServiceStatus
+open Confluent.Kafka
 
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
@@ -137,7 +139,7 @@ module Consumer =
                 )
             with
             | :? KafkaException as e ->
-                // exlicitly print error, because consume is in seq {} and it handles exceptions and just prints a message
+                // explicitly print error, because consume is in seq {} and it handles exceptions and just prints a message
                 eprintfn "ConsumeError: %A" e
                 raise e
 
@@ -173,6 +175,10 @@ module Consumer =
                     Consumer.close log consumer
             }
 
+        type private ConsumeError =
+            | BrokerError
+            | TopicError
+
         let private consumeMessageSeqWithChecker connect consumeMessage checker log configuration =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
@@ -190,6 +196,8 @@ module Consumer =
                 use consumer: Consumer = configuration |> connect log
 
                 try
+                    let mutable consumeError: ConsumeError option = None
+
                     while attempt <= maxRetries do
                         match checker.CheckCluster consumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.Handle with
                         | true, true ->
@@ -200,11 +208,34 @@ module Consumer =
                                 let message: 'a option = consumer |> consumeMessage
                                 if message.IsSome then
                                     yield message.Value
-                        | _ ->
+                        | isBrokerOk, isTopicOk ->
                             let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
 
                             attempt <- currentAttempt
                             waitForResource <- waitFor
+
+                            let error =
+                                match isBrokerOk, isTopicOk with
+                                | true, false -> TopicError
+                                | _ -> BrokerError
+                            consumeError <- Some error
+
+                    if attempt > maxRetries then
+                        let createError code problem =
+                            let message = sprintf "Max attempts was reached and connection could not be estabilished. Problem is with %s." problem
+                            KafkaException(Confluent.Kafka.Error(code, message))
+
+                        consumeError
+                        |> Option.map (function
+                            | TopicError ->
+                                sprintf "%A" configuration.Connection.Topic
+                                |> createError ErrorCode.TopicException
+                            | BrokerError ->
+                                sprintf "%A" configuration.Connection.BrokerList
+                                |> createError ErrorCode.BrokerNotAvailable
+                        )
+                        |> Option.map raise
+                        |> ignore
                 finally
                     markAsDisabled |> MarkAsDisabled.execute
                     consumer |> Consumer.close log

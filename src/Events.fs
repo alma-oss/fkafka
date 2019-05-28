@@ -87,6 +87,17 @@ module Event =
             Resource = event.Resource
         }
 
+[<RequireQualifiedAccess>]
+module CommonEvent =
+    let box (event: CommonEvent) =
+        Box.createFromValues
+            event.Domain
+            event.Context
+            event.Purpose
+            event.Version
+            event.Zone
+            event.Bucket
+
 type RawData = RawData of FSharp.Data.JsonValue
 
 type RawEvent = Event<RawData, RawData option, RawData option>

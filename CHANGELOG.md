@@ -2,18 +2,19 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `CommonEvent.box` function to get whole Box out of a CommonEvent
 
 ## 6.3.1 - 2019-05-24
-- Fix consume with error handling, to raise a proper exception, when connection could not be established.
+- Fix consume with error handling, to raise a proper exception, when connection could not be established
 
 ## 6.3.0 - 2019-05-23
-- Improve error when no producer is connected.
+- Improve error when no producer is connected
 
 ## 6.2.0 - 2019-05-22
-- Add `RawEvent.toCommon` alias function for `Event.toCommon`.
+- Add `RawEvent.toCommon` alias function for `Event.toCommon`
 
 ## 6.1.0 - 2019-05-22
-- Add `CommonEvent` type to allow common operations above all events without any specific data.
+- Add `CommonEvent` type to allow common operations above all events without any specific data
 - Add `Event.toCommon` function to transform a generic `Event` into `CommonEvent`
 
 ## 6.0.0 - 2019-05-17

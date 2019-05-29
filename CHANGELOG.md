@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 6.4.0 - 2019-05-29
 - Add `CommonEvent.box` function to get whole Box out of a CommonEvent
 
 ## 6.3.1 - 2019-05-24

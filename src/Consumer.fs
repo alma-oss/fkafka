@@ -78,15 +78,17 @@ module Consumer =
 
             config
 
-        let private createConsumer (StreamName topic) (config: ConsumerConfig): Consumer =
+        let private createConsumer topic (config: ConsumerConfig): Consumer =
             let consumer = ConsumerBuilder(config).Build()
 
-            consumer.Subscribe topic
+            topic
+            |> StreamName.value
+            |> consumer.Subscribe
             consumer
 
-        let private createConsumerForLastMessage (StreamName topic) (config: ConsumerConfig): Consumer =
+        let private createConsumerForLastMessage topic (config: ConsumerConfig): Consumer =
             let consumer = ConsumerBuilder(config).Build()
-            let topicPartition = TopicPartition(topic, Partition(0))
+            let topicPartition = TopicPartition(topic |> StreamName.value, Partition(0))
 
             let lastMessageOffset =
                 consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)

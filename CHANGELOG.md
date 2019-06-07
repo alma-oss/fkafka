@@ -2,6 +2,9 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Update dependencies
+    - Update `Confluent.Kafka` to the most up to date version `1.0.1`
+    - Update `Lmc.Metrics` to allow `ResourceAvailability.Service` and more
 
 ## 6.4.0 - 2019-05-29
 - Add `CommonEvent.box` function to get whole Box out of a CommonEvent

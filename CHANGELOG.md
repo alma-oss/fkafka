@@ -5,6 +5,7 @@
 - [**BC**] Update dependencies
     - Update `Confluent.Kafka` to the most up to date version `1.0.1`
     - Update `Lmc.Metrics` to allow `ResourceAvailability.Service` and more
+- [**BC**] Allow `StreamName` to be defined by `Instance`
 
 ## 6.4.0 - 2019-05-29
 - Add `CommonEvent.box` function to get whole Box out of a CommonEvent

@@ -1,4 +1,6 @@
 namespace Kafka
+
+open ServiceIdentification
 open Metrics.ServiceStatus
 
 //
@@ -9,10 +11,14 @@ open Metrics.ServiceStatus
 [<Measure>] type attempt
 
 type BrokerList = BrokerList of string
-type StreamName = StreamName of string
+type StreamName =
+    | StreamName of string
+    | Instance of Instance
 
 module StreamName =
-    let value (StreamName streamName) = streamName
+    let value = function
+        | (StreamName streamName) -> streamName
+        | Instance instance -> instance |> Instance.concat "-"
 
 type GroupId =
     | Random

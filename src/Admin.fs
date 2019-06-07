@@ -30,7 +30,8 @@ module Admin =
     let topicExists admin topic =
         admin
         |> getAllTopics
-        |> List.contains topic
+        |> List.map StreamName.value
+        |> List.contains (topic |> StreamName.value)
 
     let isUp (admin: AdminClient) =
         try

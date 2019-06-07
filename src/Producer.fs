@@ -123,8 +123,8 @@ module Producer =
             Value = message
         )
 
-    let private produceMessageTo (producer: Producer) (StreamName topic) (message: Message) =
-        producer.Produce(topic, message)
+    let private produceMessageTo (producer: Producer) topic (message: Message) =
+        producer.Produce(topic |> StreamName.value, message)
 
     let produce producer message =
         message

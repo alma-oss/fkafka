@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 7.0.0 - 2019-06-10
 - [**BC**] Update dependencies
     - Update `Confluent.Kafka` to the most up to date version `1.0.1`
     - Update `Lmc.Metrics` to allow `ResourceAvailability.Service` and more

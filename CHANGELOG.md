@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 7.1.0 - 2019-06-11
 - Add `IntervalChecker` module and type
     - Allow checking kafka cluster and topic in interval and handle their state while consuming
 

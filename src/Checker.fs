@@ -1,5 +1,7 @@
 namespace Kafka
 
+open FSharp.Control
+
 type Checker = {
     WaitForResourceDefault: int<second>
     MaxRetries: int<attempt>
@@ -30,4 +32,47 @@ module Checker =
             MaxRetries = 10<attempt>
             CheckCluster = checkCluster
             CheckTopic = checkTopic
+        }
+
+type IntervalChecker = {
+    CheckClusterInInterval: Confluent.Kafka.Handle -> AsyncSeq<bool>
+    ClusterHandler: bool -> unit
+    CheckTopicInInterval: StreamName -> Confluent.Kafka.Handle -> AsyncSeq<bool>
+    TopicHandler: StreamName -> bool -> unit
+}
+
+module IntervalChecker =
+    let private checkInInterval: int<second> -> (unit -> bool) -> AsyncSeq<bool> =
+        fun interval handler ->
+            asyncSeq {
+                let waitMilliseconds = (int interval) * 1000
+
+                while true do
+                    yield handler()
+
+                    do! Async.Sleep waitMilliseconds
+            }
+
+    let checkClusterInInterval interval handle =
+        fun () -> Checker.checkCluster handle
+        |> checkInInterval interval
+
+    let checkTopicInInterval interval topic handle =
+        fun () -> Checker.checkTopic topic handle
+        |> checkInInterval interval
+
+    let defaultChecker =
+        {
+            CheckClusterInInterval = checkClusterInInterval 60<second>
+            ClusterHandler = ignore
+            CheckTopicInInterval = checkTopicInInterval 60<second>
+            TopicHandler = fun _ -> ignore
+        }
+
+    let empty =
+        {
+            CheckClusterInInterval = fun _ -> AsyncSeq.empty
+            ClusterHandler = ignore
+            CheckTopicInInterval = fun _ _ -> AsyncSeq.empty
+            TopicHandler = fun _ -> ignore
         }

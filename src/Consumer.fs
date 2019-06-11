@@ -1,13 +1,16 @@
 namespace Kafka
 
-open Metrics.ServiceStatus
+open System.Threading
+open FSharp.Control
 open Confluent.Kafka
+open Metrics.ServiceStatus
 
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
     GroupId: GroupId
     Logger: Logger option
     Checker: Checker option
+    IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
 }
 
@@ -18,6 +21,7 @@ module ConsumerConfiguration =
             GroupId = groupId
             Logger = None
             Checker = None
+            IntervalChecker = None
             ServiceStatus = None
         }
 
@@ -56,7 +60,6 @@ type MessageReader<'Event> =
 
 module Consumer =
     open System
-    open Confluent.Kafka
 
     type private Consumer = IConsumer<Ignore, string>
 
@@ -181,7 +184,7 @@ module Consumer =
             | BrokerError
             | TopicError
 
-        let private consumeMessageSeqWithChecker connect consumeMessage checker log configuration =
+        let private consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker log configuration =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
@@ -196,15 +199,27 @@ module Consumer =
 
             seq {
                 use consumer: Consumer = configuration |> connect log
+                use cancellationTokenSource = new CancellationTokenSource()
 
                 try
                     let mutable consumeError: ConsumeError option = None
+
+                    let asyncStartWithCancellation computation =
+                        Async.Start (computation, cancellationTokenSource.Token)
 
                     while attempt <= maxRetries do
                         match checker.CheckCluster consumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.Handle with
                         | true, true ->
                             logStartReading log configuration.GroupId
                             waitForResource <- markAsEnabledAndRestartWaitTime ()
+
+                            intervalChecker.CheckClusterInInterval consumer.Handle
+                            |> AsyncSeq.iter intervalChecker.ClusterHandler
+                            |> asyncStartWithCancellation
+
+                            intervalChecker.CheckTopicInInterval configuration.Connection.Topic consumer.Handle
+                            |> AsyncSeq.iter (intervalChecker.TopicHandler configuration.Connection.Topic)
+                            |> asyncStartWithCancellation
 
                             while true do
                                 let message: 'a option = consumer |> consumeMessage
@@ -239,6 +254,9 @@ module Consumer =
                         |> Option.map raise
                         |> ignore
                 finally
+                    log "Cancel checker tokens ..."
+                    cancellationTokenSource.Cancel()
+
                     markAsDisabled |> MarkAsDisabled.execute
                     consumer |> Consumer.close log
             }
@@ -246,8 +264,9 @@ module Consumer =
         let seq connect consumeMessage configuration =
             let log = configuration.Logger |> Logger.resolve
 
-            match configuration.Checker with
-            | Some checker -> consumeMessageSeqWithChecker connect consumeMessage checker log configuration
+            match (configuration.Checker, configuration.IntervalChecker) with
+            | Some checker, Some intervalChecker -> consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker log configuration
+            | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty log configuration
             | _ -> consumeMessageSeq connect consumeMessage log configuration
 
     let private readMessage = function

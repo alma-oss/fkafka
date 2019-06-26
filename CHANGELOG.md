@@ -2,7 +2,10 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 8.0.0 - 2019-06-26
 - Add lint
+    - Rename types `second` and `attempt` to _PascalCase_
 
 ## 7.1.0 - 2019-06-11
 - Add `IntervalChecker` module and type

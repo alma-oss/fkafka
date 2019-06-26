@@ -188,7 +188,7 @@ module Consumer =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
-            let mutable attempt = 1<attempt>
+            let mutable attempt = 1<Attempt>
             let mutable waitForResource = defaultWaitForResource
 
             let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -17,15 +18,5 @@
     <Compile Include="src/Producer.fs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="1.0.1" />
-    <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.21" />
-    <PackageReference Include="FSharp.Data" Version="3.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Lmc.ServiceIdentification" Version="2.2" />
-    <PackageReference Include="Lmc.Metrics" Version="3.0" />
-  </ItemGroup>
-
+  <Import Project=".paket\Paket.Restore.targets" />
 </Project>

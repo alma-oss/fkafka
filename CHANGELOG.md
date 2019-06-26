@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add lint
 
 ## 7.1.0 - 2019-06-11
 - Add `IntervalChecker` module and type

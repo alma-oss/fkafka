@@ -7,8 +7,8 @@ open Metrics.ServiceStatus
 // Common
 //
 
-[<Measure>] type second
-[<Measure>] type attempt
+[<Measure>] type Second
+[<Measure>] type Attempt
 
 type BrokerList = BrokerList of string
 type StreamName =
@@ -40,15 +40,15 @@ module GroupId =
 module internal MarkAsDisabled =
     open System
 
-    let executeAndWait log (attempt: int<attempt>) (maxRetries: int<attempt>) markAsDisabled (waitFor: int<second>) =
+    let executeAndWait log (attempt: int<Attempt>) (maxRetries: int<Attempt>) markAsDisabled (waitFor: int<Second>) =
         markAsDisabled |> MarkAsDisabled.execute
         let waitForSeconds = int waitFor
 
         log <| sprintf "[Attempt: %i/%i] Waiting for resource %s" attempt maxRetries (String.replicate waitForSeconds ".")
         Threading.Thread.Sleep(TimeSpan.FromSeconds (float waitForSeconds))
 
-        let nextTimeWaitFor = Math.Min(waitForSeconds * 2, 30) |> LanguagePrimitives.Int32WithMeasure<second>
-        let currentAttempt = attempt + 1<attempt>
+        let nextTimeWaitFor = Math.Min(waitForSeconds * 2, 30) |> LanguagePrimitives.Int32WithMeasure<Second>
+        let currentAttempt = attempt + 1<Attempt>
 
         (currentAttempt, nextTimeWaitFor)
 

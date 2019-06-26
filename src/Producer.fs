@@ -63,7 +63,7 @@ module Producer =
             let log = configuration.Logger |> Logger.resolve
             let markAsDisabled = configuration.MarkAsDisabled |> ServiceStatus.resolveMarkAsDisabled
 
-            let mutable attempt = 1<attempt>
+            let mutable attempt = 1<Attempt>
             let mutable waitForResource = checker.WaitForResourceDefault
 
             let producer = createProducer configuration.Connection.BrokerList

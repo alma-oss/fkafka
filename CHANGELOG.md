@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 8.1.0 - 2019-10-22
 - Allow to create `Consumer` with `connectWith` function, to allow pass an additional configuration.
 
 ## 8.0.0 - 2019-06-26

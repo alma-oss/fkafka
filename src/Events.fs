@@ -10,19 +10,27 @@ open ServiceIdentification
 // Simple types
 
 type EventId = EventId of Guid
+
+[<RequireQualifiedAccess>]
 module EventId =
     let value (EventId eventId) = eventId
 
 type CorrelationId = CorrelationId of Guid
+
+[<RequireQualifiedAccess>]
 module CorrelationId =
     let value (CorrelationId correlationId) = correlationId
 
 type CausationId = CausationId of Guid
+
+[<RequireQualifiedAccess>]
 module CausationId =
     let value (CausationId causationId) = causationId
     let fromEventId = EventId.value >> CausationId
 
 type EventName = EventName of string
+
+[<RequireQualifiedAccess>]
 module EventName =
     let value (EventName eventName) = eventName
 

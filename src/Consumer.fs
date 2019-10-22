@@ -5,15 +5,19 @@ open FSharp.Control
 open Confluent.Kafka
 open Metrics.ServiceStatus
 
+type ConfigureConnsumer = ConsumerConfig -> ConsumerConfig
+
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
     GroupId: GroupId
+    Configure: ConfigureConnsumer option
     Logger: Logger option
     Checker: Checker option
     IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
 }
 
+[<RequireQualifiedAccess>]
 module ConsumerConfiguration =
     let createWithConnection connection groupId =
         {
@@ -23,6 +27,7 @@ module ConsumerConfiguration =
             Checker = None
             IntervalChecker = None
             ServiceStatus = None
+            Configure = None
         }
 
     let createWithDefaults brokerList topic =
@@ -69,16 +74,22 @@ module Consumer =
         Value: string
     }
 
+    [<RequireQualifiedAccess>]
     module Message =
         let value ({ Value = value }) = value
 
     module internal Consumer =
-        let private createDefaultConfig (BrokerList brokerList) groupId =
-            ConsumerConfig(
-                GroupId = (groupId |> GroupId.value),
-                BootstrapServers = brokerList,
-                AutoOffsetReset = (AutoOffsetReset.Earliest |> Nullable)
-            )
+        let private createDefaultConfig (BrokerList brokerList) groupId configure =
+            let config =
+                ConsumerConfig(
+                    GroupId = (groupId |> GroupId.value),
+                    BootstrapServers = brokerList,
+                    AutoOffsetReset = (AutoOffsetReset.Earliest |> Nullable)
+                )
+
+            match configure with
+            | Some configure -> configure config
+            | _ -> config
 
         let private createConsumer topic (config: ConsumerConfig): Consumer =
             let consumer = ConsumerBuilder(config).Build()
@@ -102,30 +113,21 @@ module Consumer =
             consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
             consumer
 
-        let internal create brokerList topic groupId =
-            createDefaultConfig brokerList groupId
+        let internal create brokerList topic groupId configure =
+            createDefaultConfig brokerList groupId configure
             |> createConsumer topic
 
-        let internal createWithOptions brokerList topic groupId (configure: ConsumerConfig -> ConsumerConfig) =
-            createDefaultConfig brokerList groupId
-            |> configure
-            |> createConsumer topic
-
-        let internal createForLastMessage brokerList topic =
-            createDefaultConfig brokerList GroupId.Random
+        let internal createForLastMessage brokerList topic configure =
+            createDefaultConfig brokerList GroupId.Random configure
             |> createConsumerForLastMessage topic
 
         let connect log configuration =
             log "Connecting ..."
-            create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId
-
-        let connectWith log configure configuration =
-            log "Connecting ..."
-            createWithOptions configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configure
+            create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configuration.Configure
 
         let connectLastMessage log configuration =
             log "Connecting for last message ..."
-            createForLastMessage configuration.Connection.BrokerList configuration.Connection.Topic
+            createForLastMessage configuration.Connection.BrokerList configuration.Connection.Topic configuration.Configure
 
         let close log (consumer: Consumer) =
             log "Consumer closing ..."

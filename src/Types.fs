@@ -15,6 +15,7 @@ type StreamName =
     | StreamName of string
     | Instance of Instance
 
+[<RequireQualifiedAccess>]
 module StreamName =
     let value = function
         | (StreamName streamName) -> streamName
@@ -24,6 +25,7 @@ type GroupId =
     | Random
     | Id of string
 
+[<RequireQualifiedAccess>]
 module GroupId =
     let map f = function
         | Id groupId -> groupId |> f |> Id
@@ -69,6 +71,7 @@ type Logger = {
     Log: string -> unit
 }
 
+[<RequireQualifiedAccess>]
 module internal Logger =
     let resolve = function
         | Some { Log = log } -> log

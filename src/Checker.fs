@@ -41,6 +41,7 @@ type IntervalChecker = {
     TopicHandler: StreamName -> bool -> unit
 }
 
+[<RequireQualifiedAccess>]
 module IntervalChecker =
     let private checkInInterval: int<Second> -> (unit -> bool) -> AsyncSeq<bool> =
         fun interval handler ->

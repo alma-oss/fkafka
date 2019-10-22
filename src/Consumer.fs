@@ -74,12 +74,11 @@ module Consumer =
 
     module internal Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId =
-            let config = ConsumerConfig()
-            config.GroupId <- groupId |> GroupId.value
-            config.BootstrapServers <- brokerList
-            config.AutoOffsetReset <- AutoOffsetReset.Earliest |> Nullable
-
-            config
+            ConsumerConfig(
+                GroupId = (groupId |> GroupId.value),
+                BootstrapServers = brokerList,
+                AutoOffsetReset = (AutoOffsetReset.Earliest |> Nullable)
+            )
 
         let private createConsumer topic (config: ConsumerConfig): Consumer =
             let consumer = ConsumerBuilder(config).Build()
@@ -107,6 +106,11 @@ module Consumer =
             createDefaultConfig brokerList groupId
             |> createConsumer topic
 
+        let internal createWithOptions brokerList topic groupId (configure: ConsumerConfig -> ConsumerConfig) =
+            createDefaultConfig brokerList groupId
+            |> configure
+            |> createConsumer topic
+
         let internal createForLastMessage brokerList topic =
             createDefaultConfig brokerList GroupId.Random
             |> createConsumerForLastMessage topic
@@ -114,6 +118,10 @@ module Consumer =
         let connect log configuration =
             log "Connecting ..."
             create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId
+
+        let connectWith log configure configuration =
+            log "Connecting ..."
+            createWithOptions configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configure
 
         let connectLastMessage log configuration =
             log "Connecting for last message ..."

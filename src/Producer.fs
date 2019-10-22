@@ -8,6 +8,7 @@ type ProducerConfiguration = {
     MarkAsDisabled: MarkAsDisabled option
 }
 
+[<RequireQualifiedAccess>]
 module ProducerConfiguration =
     let createWithConnection connection =
         {

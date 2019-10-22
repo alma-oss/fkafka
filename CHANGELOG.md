@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Allow to create `Consumer` with `connectWith` function, to allow pass an additional configuration.
 
 ## 8.0.0 - 2019-06-26
 - Add lint

@@ -2,8 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 9.0.0 - 2019-10-22
 - [**BC**] Remove function `connectWith`
 - [**BC**] Add `Configure` field to `ConsumerConfiguration`, to allow pass an additional configuration.
+- [**BC**] Add `RequireQualifiedAccess` attribute to the Modules
 
 ## 8.1.0 - 2019-10-22
 - Allow to create `Consumer` with `connectWith` function, to allow pass an additional configuration.

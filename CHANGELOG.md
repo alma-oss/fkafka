@@ -9,6 +9,7 @@
 - Add functions:
     - `RawData.toJson`
     - `RawEvent.toDto`
+- Change git host
 
 ## 9.0.0 - 2019-10-22
 - [**BC**] Remove function `connectWith`

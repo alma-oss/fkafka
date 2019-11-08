@@ -39,6 +39,19 @@ type Resource = {
     Href: string
 }
 
+type ResourceDto = {
+    name: string
+    href: string
+}
+
+[<RequireQualifiedAccess>]
+module Resource =
+    let toDto (resource: Resource) =
+        {
+            name = resource.Name
+            href = resource.Href
+        }
+
 // Generic event
 
 type Event<'KeyData, 'MetaData, 'DomainData> = {
@@ -76,6 +89,25 @@ type CommonEvent = {
     Resource: Resource option
 }
 
+type RawEventDto = {
+    schema: int
+    id: Guid
+    correlation_id: Guid
+    causation_id: Guid
+    timestamp: string
+    event: string
+    domain: string
+    context: string
+    purpose: string
+    version: string
+    zone: string
+    bucket: string
+    resource: string
+    meta_data: string
+    key_data: string
+    domain_data: string
+}
+
 [<RequireQualifiedAccess>]
 module Event =
     let toCommon (event: Event<'KeyData, 'MetaData, 'DomainData>) =
@@ -108,7 +140,19 @@ module CommonEvent =
 
 type RawData = RawData of FSharp.Data.JsonValue
 
+[<RequireQualifiedAccess>]
+module RawData =
+    open FSharp.Data
+
+    let toJson (RawData data) =
+        data.ToString(JsonSaveOptions.DisableFormatting)
+
 type RawEvent = Event<RawData, RawData option, RawData option>
+
+type RawEventDtoResult = {
+    NullableFields: string list
+    Dto: RawEventDto
+}
 
 [<RequireQualifiedAccess>]
 module RawEvent =
@@ -166,3 +210,32 @@ module RawEvent =
     let toCommon (event: RawEvent) =
         event
         |> Event.toCommon
+
+    let toDto (serialize: obj -> string) prepareMetaData (event: RawEvent) =
+        {
+            NullableFields = [ "meta_data"; "resource"; "domain_data" ]
+            Dto = {
+                schema = event.Schema
+                id = event.Id |> EventId.value
+                correlation_id = event.CorrelationId |> CorrelationId.value
+                causation_id = event.CausationId |> CausationId.value
+                timestamp = event.Timestamp
+                event = event.Event |> EventName.value
+                domain = event.Domain |> Domain.value
+                context = event.Context |> Context.value
+                purpose = event.Purpose |> Purpose.value
+                version = event.Version |> Version.value
+                zone = event.Zone |> Zone.value
+                bucket = event.Bucket |> Bucket.value
+                meta_data = event.MetaData |> prepareMetaData serialize
+                resource =
+                    match event.Resource with
+                    | Some resource -> resource |> Resource.toDto |> serialize
+                    | _ -> null
+                key_data = event.KeyData |> RawData.toJson
+                domain_data =
+                    match event.DomainData with
+                    | Some domainData -> domainData |> RawData.toJson
+                    | _ -> null
+            }
+        }

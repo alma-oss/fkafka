@@ -2,6 +2,13 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add types/modules
+    - `ResourceDto`
+    - `RawEventDto`
+    - `RawEventDtoResult`
+- Add functions:
+    - `RawData.toJson`
+    - `RawEvent.toDto`
 
 ## 9.0.0 - 2019-10-22
 - [**BC**] Remove function `connectWith`

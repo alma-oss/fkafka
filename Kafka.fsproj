@@ -10,6 +10,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="src/Types.fs" />
     <Compile Include="src/Admin.fs" />
     <Compile Include="src/Checker.fs" />

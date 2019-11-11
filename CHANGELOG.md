@@ -10,6 +10,7 @@
     - `RawData.toJson`
     - `RawEvent.toDto`
 - Change git host
+- Add `AssemblyInfo`
 
 ## 9.0.0 - 2019-10-22
 - [**BC**] Remove function `connectWith`

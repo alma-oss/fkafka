@@ -2,6 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add type/module for `ResourceDto`
+- Add function `RawData.toJson`
+- Change git host
+- Add `AssemblyInfo`
+- Add `SerializeEvent` type and `Event.toDto: SerializeEvent` function
 
 ## 9.0.0 - 2019-10-22
 - [**BC**] Remove function `connectWith`

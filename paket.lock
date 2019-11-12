@@ -9,7 +9,7 @@ NUGET
     FSharp.Core (4.7)
     FSharp.Data (3.3.2)
       FSharp.Core (>= 4.3.4)
-    librdkafka.redist (1.2.1)
+    librdkafka.redist (1.2.2)
     Suave (2.5.6)
       FSharp.Core (>= 4.3.4)
     System.Memory (4.5.3)

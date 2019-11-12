@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 9.1.0 - 2019-11-12
 - Add type/module for `ResourceDto`
 - Add function `RawData.toJson`
 - Change git host

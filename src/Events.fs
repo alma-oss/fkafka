@@ -89,7 +89,9 @@ type CommonEvent = {
     Resource: Resource option
 }
 
-type RawEventDto = {
+type NoData = unit
+
+type EventDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto> = {
     schema: int
     id: Guid
     correlation_id: Guid
@@ -102,11 +104,20 @@ type RawEventDto = {
     version: string
     zone: string
     bucket: string
-    resource: string
-    meta_data: string
-    key_data: string
-    domain_data: string
+    resource: 'ResourceDto
+    meta_data: 'MetaDataDto
+    key_data: 'KeyDataDto
+    domain_data: 'DomainDataDto
 }
+
+type SerializeEvent<'KeyData, 'MetaData, 'DomainData, 'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+    (Event<'KeyData, 'MetaData, 'DomainData> -> Result<unit, 'Error>)
+        -> (Resource option -> Result<'ResourceDto, 'Error>)
+        -> ('MetaData -> Result<'MetaDataDto, 'Error>)
+        -> ('KeyData -> Result<'KeyDataDto, 'Error>)
+        -> ('DomainData -> Result<'DomainDataDto, 'Error>)
+        -> Event<'KeyData, 'MetaData, 'DomainData>
+        -> Result<EventDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto>, 'Error>
 
 [<RequireQualifiedAccess>]
 module Event =
@@ -126,6 +137,36 @@ module Event =
             Bucket = event.Bucket
             Resource = event.Resource
         }
+
+    let toDto: SerializeEvent<'KeyData, 'MetaData, 'DomainData, 'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+        fun assertEventType serializeResource serializeMetaData serializeKeyData serializeDomainData event ->
+            result {
+                do! assertEventType event
+
+                let! resourceDto = event.Resource |> serializeResource
+                let! metaDataDto = event.MetaData |> serializeMetaData
+                let! keyDataDto = event.KeyData |> serializeKeyData
+                let! domainDataDto = event.DomainData |> serializeDomainData
+
+                return {
+                    schema = event.Schema
+                    id = event.Id |> EventId.value
+                    correlation_id = event.CorrelationId |> CorrelationId.value
+                    causation_id = event.CausationId |> CausationId.value
+                    timestamp = event.Timestamp
+                    event = event.Event |> EventName.value
+                    domain = event.Domain |> Domain.value
+                    context = event.Context |> Context.value
+                    purpose = event.Purpose |> Purpose.value
+                    version = event.Version |> Version.value
+                    zone = event.Zone |> Zone.value
+                    bucket = event.Bucket |> Bucket.value
+                    meta_data = metaDataDto
+                    resource = resourceDto
+                    key_data = keyDataDto
+                    domain_data = domainDataDto
+                }
+            }
 
 [<RequireQualifiedAccess>]
 module CommonEvent =
@@ -148,11 +189,6 @@ module RawData =
         data.ToString(JsonSaveOptions.DisableFormatting)
 
 type RawEvent = Event<RawData, RawData option, RawData option>
-
-type RawEventDtoResult = {
-    NullableFields: string list
-    Dto: RawEventDto
-}
 
 [<RequireQualifiedAccess>]
 module RawEvent =
@@ -210,32 +246,3 @@ module RawEvent =
     let toCommon (event: RawEvent) =
         event
         |> Event.toCommon
-
-    let toDto (serialize: obj -> string) prepareMetaData (event: RawEvent) =
-        {
-            NullableFields = [ "meta_data"; "resource"; "domain_data" ]
-            Dto = {
-                schema = event.Schema
-                id = event.Id |> EventId.value
-                correlation_id = event.CorrelationId |> CorrelationId.value
-                causation_id = event.CausationId |> CausationId.value
-                timestamp = event.Timestamp
-                event = event.Event |> EventName.value
-                domain = event.Domain |> Domain.value
-                context = event.Context |> Context.value
-                purpose = event.Purpose |> Purpose.value
-                version = event.Version |> Version.value
-                zone = event.Zone |> Zone.value
-                bucket = event.Bucket |> Bucket.value
-                meta_data = event.MetaData |> prepareMetaData serialize
-                resource =
-                    match event.Resource with
-                    | Some resource -> resource |> Resource.toDto |> serialize
-                    | _ -> null
-                key_data = event.KeyData |> RawData.toJson
-                domain_data =
-                    match event.DomainData with
-                    | Some domainData -> domainData |> RawData.toJson
-                    | _ -> null
-            }
-        }

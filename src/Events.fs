@@ -170,6 +170,14 @@ module Event =
 
 [<RequireQualifiedAccess>]
 module CommonEvent =
+    let schema ({ Schema = schema }: CommonEvent) = schema
+    let id ({ Id = id }: CommonEvent) = id
+    let correlationId ({ CorrelationId = correlationId }: CommonEvent) = correlationId
+    let causationId ({ CausationId = causationId }: CommonEvent) = causationId
+
+    let timestamp ({ Timestamp = timestamp }: CommonEvent) = timestamp
+    let eventType ({ Event = event }: CommonEvent) = event
+
     let box (event: CommonEvent) =
         Box.createFromValues
             event.Domain
@@ -178,6 +186,8 @@ module CommonEvent =
             event.Version
             event.Zone
             event.Bucket
+
+    let resource ({ Resource = resource }: CommonEvent) = resource
 
 type RawData = RawData of FSharp.Data.JsonValue
 

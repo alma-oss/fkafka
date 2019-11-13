@@ -2,6 +2,14 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `CommonEvent` functions:
+    - `schema`
+    - `id`
+    - `correlationId`
+    - `causationId`
+    - `timestamp`
+    - `eventType`
+    - `resource`
 
 ## 9.1.0 - 2019-11-12
 - Add type/module for `ResourceDto`

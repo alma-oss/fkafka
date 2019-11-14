@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Allow `Lmc.ServiceIdentification` in version `3`
 
 ## 9.2.0 - 2019-11-13
 - Add `CommonEvent` functions:

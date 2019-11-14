@@ -21,11 +21,11 @@ NUGET
       Lmc.ErrorHandling (>= 1.4.2)
       Lmc.ServiceIdentification (>= 2.5)
       Suave (>= 2.5.5)
-    Lmc.ServiceIdentification (2.6.0)
+    Lmc.ServiceIdentification (3.2.0)
       FSharp.Core (>= 4.7)
 GIT
   remote: ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git
-     (5e45a8ad9e510cc34fe54b72573ca8cdc62cc0b0)
+     (e45451bff5cd0bea8356f24c69a2b2cb991d0a95)
       path: /nuget/
 GROUP Build
 STORAGE: NONE

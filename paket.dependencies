@@ -1,4 +1,4 @@
-framework: netcoreapp2.2
+framework: netcoreapp3.1
 
 source https://api.nuget.org/v3/index.json
 nuget FSharp.Core
@@ -8,8 +8,8 @@ nuget FSharp.Data ~> 3.0
 
 git ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git master Packages: /nuget/
 # LMC Nuget dependencies:
-nuget Lmc.ServiceIdentification ~> 3.2
-nuget Lmc.Metrics ~> 3.1
+nuget Lmc.ServiceIdentification ~> 3.4
+nuget Lmc.Metrics ~> 3.4
 
 // [ FAKE GROUP ]
 group Build

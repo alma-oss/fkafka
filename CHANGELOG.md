@@ -5,6 +5,12 @@
 - [**BC**] Use .netcore 3.1
 - [**BC**] Update dependencies
 - [**BC**] Change `DTO` format to PascalCase
+- Add EventDto subtypes `WithResource` and `WithoutResource`
+    - Add `Serialize` types for that
+    - [**BC**] Change `Event.toDto` function
+    - Add functions:
+        - `Event.withResourceToDto`
+        - `Event.withoutResourceToDto`
 
 ## 9.3.0 - 2019-11-14
 - Allow `Lmc.ServiceIdentification` in version `3`

@@ -40,16 +40,16 @@ type Resource = {
 }
 
 type ResourceDto = {
-    name: string
-    href: string
+    Name: string
+    Href: string
 }
 
 [<RequireQualifiedAccess>]
 module Resource =
-    let toDto (resource: Resource) =
+    let toDto: Resource -> ResourceDto = fun resource ->
         {
-            name = resource.Name
-            href = resource.Href
+            Name = resource.Name
+            Href = resource.Href
         }
 
 // Generic event
@@ -91,28 +91,68 @@ type CommonEvent = {
 
 type NoData = unit
 
-type EventDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto> = {
-    schema: int
-    id: Guid
-    correlation_id: Guid
-    causation_id: Guid
-    timestamp: string
-    event: string
-    domain: string
-    context: string
-    purpose: string
-    version: string
-    zone: string
-    bucket: string
-    resource: 'ResourceDto
-    meta_data: 'MetaDataDto
-    key_data: 'KeyDataDto
-    domain_data: 'DomainDataDto
+type EventWithResourceDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto> = {
+    Schema: int
+    Id: Guid
+    CorrelationId: Guid
+    CausationId: Guid
+    Timestamp: string
+    Event: string
+    Domain: string
+    Context: string
+    Purpose: string
+    Version: string
+    Zone: string
+    Bucket: string
+    Resource: 'ResourceDto
+    MetaData: 'MetaDataDto
+    KeyData: 'KeyDataDto
+    DomainData: 'DomainDataDto
 }
+
+type EventWithoutResourceDto<'KeyDataDto, 'MetaDataDto, 'DomainDataDto> = {
+    Schema: int
+    Id: Guid
+    CorrelationId: Guid
+    CausationId: Guid
+    Timestamp: string
+    Event: string
+    Domain: string
+    Context: string
+    Purpose: string
+    Version: string
+    Zone: string
+    Bucket: string
+    MetaData: 'MetaDataDto
+    KeyData: 'KeyDataDto
+    DomainData: 'DomainDataDto
+}
+
+[<RequireQualifiedAccess>]
+type EventDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto> =
+    | WithResource of EventWithResourceDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto>
+    | WithoutResource of EventWithoutResourceDto<'KeyDataDto, 'MetaDataDto, 'DomainDataDto>
+
+type SerializeEventWithResource<'KeyData, 'MetaData, 'DomainData, 'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+    (Event<'KeyData, 'MetaData, 'DomainData> -> Result<unit, 'Error>)
+        -> (Resource option -> Result<'ResourceDto, 'Error>)
+        -> ('MetaData -> Result<'MetaDataDto, 'Error>)
+        -> ('KeyData -> Result<'KeyDataDto, 'Error>)
+        -> ('DomainData -> Result<'DomainDataDto, 'Error>)
+        -> Event<'KeyData, 'MetaData, 'DomainData>
+        -> Result<EventWithResourceDto<'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto>, 'Error>
+
+type SerializeEventWithoutResource<'KeyData, 'MetaData, 'DomainData, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+    (Event<'KeyData, 'MetaData, 'DomainData> -> Result<unit, 'Error>)
+        -> ('MetaData -> Result<'MetaDataDto, 'Error>)
+        -> ('KeyData -> Result<'KeyDataDto, 'Error>)
+        -> ('DomainData -> Result<'DomainDataDto, 'Error>)
+        -> Event<'KeyData, 'MetaData, 'DomainData>
+        -> Result<EventWithoutResourceDto<'KeyDataDto, 'MetaDataDto, 'DomainDataDto>, 'Error>
 
 type SerializeEvent<'KeyData, 'MetaData, 'DomainData, 'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
     (Event<'KeyData, 'MetaData, 'DomainData> -> Result<unit, 'Error>)
-        -> (Resource option -> Result<'ResourceDto, 'Error>)
+        -> (Resource -> Result<'ResourceDto, 'Error>)
         -> ('MetaData -> Result<'MetaDataDto, 'Error>)
         -> ('KeyData -> Result<'KeyDataDto, 'Error>)
         -> ('DomainData -> Result<'DomainDataDto, 'Error>)
@@ -143,28 +183,107 @@ module Event =
             result {
                 do! assertEventType event
 
+                let! metaDataDto = event.MetaData |> serializeMetaData
+                let! keyDataDto = event.KeyData |> serializeKeyData
+                let! domainDataDto = event.DomainData |> serializeDomainData
+
+                match event.Resource with
+                | Some resource ->
+                    let! resourceDto = resource |> serializeResource
+
+                    return EventDto.WithResource {
+                        Schema = event.Schema
+                        Id = event.Id |> EventId.value
+                        CorrelationId = event.CorrelationId |> CorrelationId.value
+                        CausationId = event.CausationId |> CausationId.value
+                        Timestamp = event.Timestamp
+                        Event = event.Event |> EventName.value
+                        Domain = event.Domain |> Domain.value
+                        Context = event.Context |> Context.value
+                        Purpose = event.Purpose |> Purpose.value
+                        Version = event.Version |> Version.value
+                        Zone = event.Zone |> Zone.value
+                        Bucket = event.Bucket |> Bucket.value
+                        MetaData = metaDataDto
+                        Resource = resourceDto
+                        KeyData = keyDataDto
+                        DomainData = domainDataDto
+                    }
+                | _ ->
+                    return EventDto.WithoutResource {
+                        Schema = event.Schema
+                        Id = event.Id |> EventId.value
+                        CorrelationId = event.CorrelationId |> CorrelationId.value
+                        CausationId = event.CausationId |> CausationId.value
+                        Timestamp = event.Timestamp
+                        Event = event.Event |> EventName.value
+                        Domain = event.Domain |> Domain.value
+                        Context = event.Context |> Context.value
+                        Purpose = event.Purpose |> Purpose.value
+                        Version = event.Version |> Version.value
+                        Zone = event.Zone |> Zone.value
+                        Bucket = event.Bucket |> Bucket.value
+                        MetaData = metaDataDto
+                        KeyData = keyDataDto
+                        DomainData = domainDataDto
+                    }
+            }
+
+    let withResourceToDto: SerializeEventWithResource<'KeyData, 'MetaData, 'DomainData, 'ResourceDto, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+        fun assertEventType serializeResource serializeMetaData serializeKeyData serializeDomainData event ->
+            result {
+                do! assertEventType event
+
                 let! resourceDto = event.Resource |> serializeResource
                 let! metaDataDto = event.MetaData |> serializeMetaData
                 let! keyDataDto = event.KeyData |> serializeKeyData
                 let! domainDataDto = event.DomainData |> serializeDomainData
 
                 return {
-                    schema = event.Schema
-                    id = event.Id |> EventId.value
-                    correlation_id = event.CorrelationId |> CorrelationId.value
-                    causation_id = event.CausationId |> CausationId.value
-                    timestamp = event.Timestamp
-                    event = event.Event |> EventName.value
-                    domain = event.Domain |> Domain.value
-                    context = event.Context |> Context.value
-                    purpose = event.Purpose |> Purpose.value
-                    version = event.Version |> Version.value
-                    zone = event.Zone |> Zone.value
-                    bucket = event.Bucket |> Bucket.value
-                    meta_data = metaDataDto
-                    resource = resourceDto
-                    key_data = keyDataDto
-                    domain_data = domainDataDto
+                    Schema = event.Schema
+                    Id = event.Id |> EventId.value
+                    CorrelationId = event.CorrelationId |> CorrelationId.value
+                    CausationId = event.CausationId |> CausationId.value
+                    Timestamp = event.Timestamp
+                    Event = event.Event |> EventName.value
+                    Domain = event.Domain |> Domain.value
+                    Context = event.Context |> Context.value
+                    Purpose = event.Purpose |> Purpose.value
+                    Version = event.Version |> Version.value
+                    Zone = event.Zone |> Zone.value
+                    Bucket = event.Bucket |> Bucket.value
+                    MetaData = metaDataDto
+                    Resource = resourceDto
+                    KeyData = keyDataDto
+                    DomainData = domainDataDto
+                }
+            }
+
+    let withoutResourceToDto: SerializeEventWithoutResource<'KeyData, 'MetaData, 'DomainData, 'KeyDataDto, 'MetaDataDto, 'DomainDataDto, 'Error> =
+        fun assertEventType serializeMetaData serializeKeyData serializeDomainData event ->
+            result {
+                do! assertEventType event
+
+                let! metaDataDto = event.MetaData |> serializeMetaData
+                let! keyDataDto = event.KeyData |> serializeKeyData
+                let! domainDataDto = event.DomainData |> serializeDomainData
+
+                return {
+                    Schema = event.Schema
+                    Id = event.Id |> EventId.value
+                    CorrelationId = event.CorrelationId |> CorrelationId.value
+                    CausationId = event.CausationId |> CausationId.value
+                    Timestamp = event.Timestamp
+                    Event = event.Event |> EventName.value
+                    Domain = event.Domain |> Domain.value
+                    Context = event.Context |> Context.value
+                    Purpose = event.Purpose |> Purpose.value
+                    Version = event.Version |> Version.value
+                    Zone = event.Zone |> Zone.value
+                    Bucket = event.Bucket |> Bucket.value
+                    MetaData = metaDataDto
+                    KeyData = keyDataDto
+                    DomainData = domainDataDto
                 }
             }
 

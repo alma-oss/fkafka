@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 10.0.0 - 2010-05-25
 - [**BC**] Use .netcore 3.1
 - [**BC**] Update dependencies
 - [**BC**] Change `DTO` format to PascalCase

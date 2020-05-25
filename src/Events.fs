@@ -375,3 +375,9 @@ module RawEvent =
     let toCommon (event: RawEvent) =
         event
         |> Event.toCommon
+
+[<RequireQualifiedAccess>]
+module EventDto =
+    let serialize (serialize: obj -> string) = function
+        | EventDto.WithResource dto -> dto |> serialize
+        | EventDto.WithoutResource dto -> dto |> serialize

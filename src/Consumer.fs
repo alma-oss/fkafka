@@ -161,14 +161,14 @@ module Consumer =
         let consumeMessageValue (consumer: Consumer) =
             consumer
             |> consume
-            |> Option.map (fun result -> result.Value)
+            |> Option.map (fun result -> result.Message.Value)
 
         let consumeMessage (consumer: Consumer) =
             consumer
             |> consume
             |> Option.map (fun result -> {
                 Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
-                Value = result.Value
+                Value = result.Message.Value
             })
 
         let private consumeMessageSeq connect consumeMessage log configuration =

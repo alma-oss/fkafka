@@ -13,6 +13,7 @@ type EventId = EventId of Guid
 
 [<RequireQualifiedAccess>]
 module EventId =
+    let create = Guid.NewGuid() |> EventId
     let value (EventId eventId) = eventId
 
 type CorrelationId = CorrelationId of Guid

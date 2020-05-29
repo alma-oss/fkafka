@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>Library</OutputType>
     <PackageId>Lmc.Kafka</PackageId>
-    <Version>10.2.1</Version>
+    <Version>10.3.0</Version>
     <RepositoryUrl>https://bitbucket.lmc.cz/projects/ARCHI/repos/fkafka/browse</RepositoryUrl>
   </PropertyGroup>
 

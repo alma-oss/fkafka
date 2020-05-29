@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add  `CorrelationId.fromEventId` function
 
 ## 10.2.1 - 2010-05-29
 - Fix `EventId.create` function

@@ -21,6 +21,7 @@ type CorrelationId = CorrelationId of Guid
 [<RequireQualifiedAccess>]
 module CorrelationId =
     let value (CorrelationId correlationId) = correlationId
+    let fromEventId = EventId.value >> CorrelationId
 
 type CausationId = CausationId of Guid
 

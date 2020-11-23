@@ -2,20 +2,22 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 11.0.0 - 2020-11-23
 - Update dependencies
 - [**BC**] Change namespace to `Lmc.Kafka`
 
-## 10.3.0 - 2010-05-29
+## 10.3.0 - 2020-05-29
 - Fix `EventId.create` function
 - Add  `CorrelationId.fromEventId` function
 
-## 10.2.0 - 2010-05-28
+## 10.2.0 - 2020-05-28
 - Add `EventId.create` function
 
-## 10.1.0 - 2010-05-25
+## 10.1.0 - 2020-05-25
 - Add `EventDto.serialize` function
 
-## 10.0.0 - 2010-05-25
+## 10.0.0 - 2020-05-25
 - [**BC**] Use .netcore 3.1
 - [**BC**] Update dependencies
 - [**BC**] Change `DTO` format to PascalCase

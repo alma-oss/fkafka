@@ -1,4 +1,4 @@
-RESTRICTION: == netcoreapp3.1
+RESTRICTION: == net50
 NUGET
   remote: https://api.nuget.org/v3/index.json
     Confluent.Kafka (1.5.2)
@@ -14,17 +14,17 @@ NUGET
       FSharp.Core (>= 4.3.4)
     System.Memory (4.5.4)
   remote: paket-files/git_bitbucket.lmc.cz7999/archi/nuget-server/nuget
-    Lmc.ErrorHandling (3.0.0)
+    Lmc.ErrorHandling (4.0.0)
       FSharp.Core (>= 5.0)
-    Lmc.Metrics (4.0.0)
+    Lmc.Metrics (5.0.0)
       FSharp.Core (>= 5.0)
-      Lmc.ErrorHandling (>= 3.0)
-      Lmc.ServiceIdentification (>= 4.0)
+      Lmc.ErrorHandling (>= 4.0)
+      Lmc.ServiceIdentification (>= 5.0)
       Suave (>= 2.5.6)
-    Lmc.ServiceIdentification (4.0.0)
+    Lmc.ServiceIdentification (5.0.0)
 GIT
   remote: ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git
-     (f44f5b628db28b50a9df8cafc32bf6fad8693d4b)
+     (cdbedcd04971f6868a16c6ad0a536760edfa8143)
       path: /nuget/
 GROUP Build
 STORAGE: NONE

@@ -1,7 +1,7 @@
-namespace Kafka
+namespace Lmc.Kafka
 
-open ServiceIdentification
-open Metrics.ServiceStatus
+open Lmc.ServiceIdentification
+open Lmc.Metrics.ServiceStatus
 
 //
 // Common

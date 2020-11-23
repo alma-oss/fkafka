@@ -1,7 +1,8 @@
-namespace Kafka
+namespace Lmc.Kafka
 
 open System
-open ServiceIdentification
+open Lmc.ServiceIdentification
+open Lmc.ErrorHandling
 
 //
 // Events

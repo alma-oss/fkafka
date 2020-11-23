@@ -4,8 +4,7 @@ open System
 open Confluent.Kafka
 open MF.ConsoleStyle
 open Kafka.Admin
-open System
-open Kafka
+open Lmc.Kafka
 open Confluent.Kafka
 
 type private Consumer = Consumer<Ignore, string>

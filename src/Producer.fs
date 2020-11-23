@@ -1,5 +1,6 @@
-namespace Kafka
-open Metrics.ServiceStatus
+namespace Lmc.Kafka
+
+open Lmc.Metrics.ServiceStatus
 
 type ProducerConfiguration = {
     Connection: ConnectionConfiguration

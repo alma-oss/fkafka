@@ -8,8 +8,9 @@ nuget FSharp.Data ~> 3.0
 
 git ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git master Packages: /nuget/
 # LMC Nuget dependencies:
-nuget Lmc.ServiceIdentification ~> 3.4
-nuget Lmc.Metrics ~> 3.4
+nuget Lmc.ErrorHandling ~> 3.0
+nuget Lmc.Metrics ~> 4.0
+nuget Lmc.ServiceIdentification ~> 4.0
 
 // [ FAKE GROUP ]
 group Build

@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update dependencies
+- [**BC**] Change namespace to `Lmc.Kafka`
 
 ## 10.3.0 - 2010-05-29
 - Fix `EventId.create` function

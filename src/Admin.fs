@@ -1,4 +1,4 @@
-namespace Kafka
+namespace Lmc.Kafka
 
 module Admin =
     open System

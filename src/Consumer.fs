@@ -1,9 +1,9 @@
-namespace Kafka
+namespace Lmc.Kafka
 
 open System.Threading
 open FSharp.Control
 open Confluent.Kafka
-open Metrics.ServiceStatus
+open Lmc.Metrics.ServiceStatus
 
 type ConfigureConnsumer = ConsumerConfig -> ConsumerConfig
 

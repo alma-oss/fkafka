@@ -1,4 +1,4 @@
-namespace Kafka
+namespace Lmc.Kafka
 
 open FSharp.Control
 

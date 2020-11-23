@@ -1,7 +1,7 @@
 // Learn more about F# at http://fsharp.org
 
 open System
-open Kafka
+open Lmc.Kafka
 open MF.ConsoleStyle
 
 [<EntryPoint>]

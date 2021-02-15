@@ -6,7 +6,7 @@ NUGET
       System.Memory (>= 4.5)
     FSharp.Control.AsyncSeq (2.0.24)
       FSharp.Core (>= 4.3.2)
-    FSharp.Core (5.0)
+    FSharp.Core (5.0.1)
     FSharp.Data (3.3.3)
       FSharp.Core (>= 4.3.4)
     librdkafka.redist (1.5.2)
@@ -14,17 +14,18 @@ NUGET
       FSharp.Core (>= 4.3.4)
     System.Memory (4.5.4)
   remote: paket-files/git_bitbucket.lmc.cz7999/archi/nuget-server/nuget
-    Lmc.ErrorHandling (4.0.0)
+    Lmc.ErrorHandling (5.0.0)
       FSharp.Core (>= 5.0)
-    Lmc.Metrics (5.0.0)
-      FSharp.Core (>= 5.0)
-      Lmc.ErrorHandling (>= 4.0)
-      Lmc.ServiceIdentification (>= 5.0)
+    Lmc.Metrics (5.1.0)
+      FSharp.Core (>= 5.0.1)
+      Lmc.ErrorHandling (>= 5.0)
+      Lmc.ServiceIdentification (>= 5.2)
       Suave (>= 2.5.6)
-    Lmc.ServiceIdentification (5.0.0)
+    Lmc.ServiceIdentification (5.2.0)
+      FSharp.Core (>= 5.0)
 GIT
   remote: ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git
-     (cdbedcd04971f6868a16c6ad0a536760edfa8143)
+     (f5899c397f90cd3e4695f175e2dcc52896e5cf7d)
       path: /nuget/
 GROUP Build
 STORAGE: NONE

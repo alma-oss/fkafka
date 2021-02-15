@@ -21,7 +21,7 @@ Lmc.Kafka
 
 ### Consume RawEvent sequence
 ```fs
-open Kafka
+open Lmc.Kafka
 
 let connection = {
     BrokerList = BrokerList "127.0.0.1:9092,"  // list of all brokers
@@ -38,7 +38,7 @@ Consumer.consume configuration RawEvent.Parse
 
 ### Handle raw event
 ```fs
-open Kafka
+open Lmc.Kafka
 
 let logMessage = printfn "%s"   // this function will be used for logging, it gets a simple message of what kafka lib is doing
 let incrementMessageCount = id  // this function will be used for incrementing a message count, it gets raw event content (string) for each consumed event
@@ -59,7 +59,7 @@ onRawContent                        // on RawEvent handler
 
 ### Handle raw event with
 ```fs
-open Kafka
+open Lmc.Kafka
 
 type DomainEvent =
     // + concrete domain events

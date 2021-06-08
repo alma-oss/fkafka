@@ -36,6 +36,42 @@ module GroupId =
         | Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
 
 //
+// Headers
+//
+
+type HeaderKey = HeaderKey of string
+
+[<RequireQualifiedAccess>]
+module HeaderKey =
+    let value (HeaderKey key) = key
+
+type Header = {
+    Key: HeaderKey
+    Value: byte array
+}
+
+[<RequireQualifiedAccess>]
+module Header =
+    open System.Text
+
+    let key { Key = key } = key
+
+    let value { Value = value } = value
+    let valueAsString = value >> Encoding.ASCII.GetString
+
+    let ofString key (value: string) =
+        {
+            Key = key
+            Value = value |> Encoding.ASCII.GetBytes
+        }
+
+    let internal toKafkaHeader header =
+        Confluent.Kafka.Header(
+            header.Key |> HeaderKey.value,
+            header.Value
+        )
+
+//
 // Service Status
 //
 

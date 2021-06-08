@@ -63,10 +63,23 @@ type MessageReader<'Event> =
 // Consumer
 //
 
+[<RequireQualifiedAccess>]
 module Consumer =
     open System
 
     type private Consumer = IConsumer<Ignore, string>
+
+    [<Struct>]
+    type MessageWithHeaders = {
+        Offset: int64 option
+        Value: string
+        Headers: Lmc.Kafka.Header list
+    }
+
+    [<RequireQualifiedAccess>]
+    module MessageWithHeaders =
+        let value ({ Value = value }: MessageWithHeaders) = value
+        let headers ({ Headers = headers }: MessageWithHeaders) = headers
 
     [<Struct>]
     type Message = {
@@ -76,7 +89,7 @@ module Consumer =
 
     [<RequireQualifiedAccess>]
     module Message =
-        let value ({ Value = value }) = value
+        let value ({ Value = value }: Message) = value
 
     module internal Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId configure =
@@ -169,6 +182,26 @@ module Consumer =
             |> Option.map (fun result -> {
                 Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
                 Value = result.Message.Value
+            })
+
+        let consumeMessageWithHeaders (consumer: Consumer) =
+            consumer
+            |> consume
+            |> Option.map (fun result -> {
+                Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
+                Value = result.Message.Value
+                Headers =
+                    match result.Message.Headers with
+                    | null -> []
+                    | headers ->
+                        headers
+                        |> Seq.map (fun i ->
+                            {
+                                Key = HeaderKey i.Key
+                                Value = i.GetValueBytes()
+                            }
+                        )
+                        |> List.ofSeq
             })
 
         let private consumeMessageSeq connect consumeMessage log configuration =
@@ -287,6 +320,8 @@ module Consumer =
     // Public api
     //
 
+    // Consume events/messages
+
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
@@ -300,9 +335,7 @@ module Consumer =
         try
             configuration
             |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-            |> Seq.take 1
-            |> Seq.head
-            |> Some
+            |> Seq.tryHead
         with
         | _ -> None
 
@@ -310,19 +343,50 @@ module Consumer =
         try
             configuration
             |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-            |> Seq.take 1
-            |> Seq.head
-            |> Message.value
-            |> parse
-            |> Some
+            |> Seq.tryHead
+            |> Option.map (Message.value >> parse)
         with
         | _ -> None
 
+    // Consume events/messages with headers
+
+    type ParseEventWithHeaders<'Event> = MessageWithHeaders -> 'Event
+
+    let consumeWithHeaders (configuration: ConsumerConfiguration) (parse: ParseEventWithHeaders<'Event>): 'Event seq =
+        configuration
+        |> Consume.seq Consumer.connect Consume.consumeMessageWithHeaders
+        |> Seq.map parse
+
+    let consumeMessagesWithHeaders (configuration: ConsumerConfiguration): MessageWithHeaders seq =
+        configuration
+        |> Consume.seq Consumer.connect Consume.consumeMessageWithHeaders
+
+    let consumeLastMessageWithHeaders (configuration: ConsumerConfiguration): MessageWithHeaders option =
+        try
+            configuration
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageWithHeaders
+            |> Seq.tryHead
+        with
+        | _ -> None
+
+    let consumeLastWithHeaders (configuration: ConsumerConfiguration) (parse: ParseEventWithHeaders<'Event>): 'Event option =
+        try
+            configuration
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageWithHeaders
+            |> Seq.tryHead
+            |> Option.map parse
+        with
+        | _ -> None
+
+    // Read messages with reader
+
+    [<Obsolete("Use consume instead")>]
     let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.iter (readMessage reader)
 
+    [<Obsolete("Use consume + Seq.takeWhile instead")>]
     let readToOffset (configuration: ConsumerConfiguration) maxOffset (reader: MessageReader<'Event>) =
         configuration
         |> consumeMessages

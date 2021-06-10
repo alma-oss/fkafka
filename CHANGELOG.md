@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 13.0.0 - 2021-06-10
 - Add types and modules
     - `HeaderKey`
     - `Header`

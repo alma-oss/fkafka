@@ -29,6 +29,7 @@ module ProducerConfiguration =
 // Producer
 //
 
+[<RequireQualifiedAccess>]
 module Producer =
     open Confluent.Kafka
 
@@ -125,8 +126,20 @@ module Producer =
             Value = message
         )
 
+    let private createMessageWithHeaders headers message =
+        let messageHeaders = Headers()
+        headers
+        |> List.iter (Header.toKafkaHeader >> messageHeaders.Add)
+
+        Message(
+            Value = message,
+            Headers = messageHeaders
+        )
+
     let private produceMessageTo (producer: Producer) topic (message: Message) =
         producer.Produce(topic |> StreamName.value, message)
+
+    // Produce message only
 
     let produce producer message =
         message
@@ -140,4 +153,20 @@ module Producer =
     let produceTo (producer: Producer) topic message =
         message
         |> createMessage
+        |> produceMessageTo producer topic
+
+    // Produce message with headers
+
+    let produceWithHeaders producer headers message =
+        message
+        |> createMessageWithHeaders headers
+        |> produceMessageTo producer.Producer producer.Topic
+
+    let produceSingleWithHeaders producer headers message =
+        message |> produceWithHeaders producer headers
+        producer |> TopicProducer.flush
+
+    let produceWithHeadersTo (producer: Producer) topic headers message =
+        message
+        |> createMessageWithHeaders headers
         |> produceMessageTo producer topic

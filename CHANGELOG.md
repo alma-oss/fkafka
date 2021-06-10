@@ -2,6 +2,20 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add types and modules
+    - `HeaderKey`
+    - `Header`
+- Add `Consumer` functions
+    - `Consumer.consumeWithHeaders`
+    - `Consumer.consumeMessagesWithHeaders`
+    - `Consumer.consumeLastMessageWithHeaders`
+    - `Consumer.consumeLastWithHeaders`
+- Add `Producer` functions
+    - `Producer.produceWithHeaders`
+    - `Producer.produceSingleWithHeaders`
+    - `Producer.produceWithHeadersTo`
+- Mark `read` and `readToOffset` functions as deprecated, since `consume` functions are recommended
+- [**BC**] Add `RequireQualifiedAccess` to `Consumer` and `Producer` modules
 
 ## 12.1.0 - 2021-02-15
 - Update dependencies

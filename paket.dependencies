@@ -3,8 +3,8 @@ framework: net5.0
 source https://api.nuget.org/v3/index.json
 nuget FSharp.Core
 nuget Confluent.Kafka ~> 1.0
-nuget FSharp.Control.AsyncSeq ~> 2.0
-nuget FSharp.Data ~> 3.0
+nuget FSharp.Control.AsyncSeq ~> 3.0
+nuget FSharp.Data ~> 4.0
 
 git ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git master Packages: /nuget/
 # LMC Nuget dependencies:

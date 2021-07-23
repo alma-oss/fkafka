@@ -37,29 +37,6 @@ module ConsumerConfiguration =
         }
 
 //
-// Kafka parser
-//
-
-type ParseEvent<'Event> = string -> 'Event
-
-//
-// Kafka readers
-//
-
-type DecodedMessageReader = {
-    ReadMessage: string -> unit
-}
-
-type ParsedMessageReader<'Event> = {
-    ParseEvent: ParseEvent<'Event>
-    OnEvent: 'Event -> unit
-}
-
-type MessageReader<'Event> =
-    | DecodedMessageReader of DecodedMessageReader
-    | ParsedMessageReader of ParsedMessageReader<'Event>
-
-//
 // Consumer
 //
 
@@ -67,29 +44,59 @@ type MessageReader<'Event> =
 module Consumer =
     open System
 
-    type private Consumer = IConsumer<Ignore, string>
+    /// Partition used for consuming - since we don't use them yet, it is always a default one - 0
+    let [<Literal>] private DefaultPartition = 0
+
+    type internal KafkaConsumer = IConsumer<Ignore, string>
+    type internal KafkaMessage = ConsumeResult<Ignore, string>
 
     [<Struct>]
-    type MessageWithHeaders = {
+    type ConsumeRuntime = {
+        /// Acutal group id used for consuming
+        GroupId: string
+        /// Acutal topic used for consuming
+        Topic: string
+        /// Acutal partition used for consuming
+        Partition: int
+    }
+
+    [<Struct>]
+    type ConsumedMessage<'Message> = {
+        Message: 'Message
+        Runtime: ConsumeRuntime
+    }
+
+    [<RequireQualifiedAccess>]
+    module internal ConsumedMessage =
+        let map f message =
+            { Message = f message.Message; Runtime = message.Runtime }
+
+    type internal Consumer =
+        {
+            /// Actual kafka consumer used for consuming events
+            KafkaConsumer: KafkaConsumer
+            /// Actual Runtime information about consume
+            Runtime: ConsumeRuntime
+        }
+
+        member this.Close() =
+            this.KafkaConsumer.Close()
+
+        interface IDisposable with
+            member this.Dispose() =
+                this.Close()
+
+    [<Struct>]
+    type Message = {
         Offset: int64 option
         Value: string
         Headers: Lmc.Kafka.Header list
     }
 
     [<RequireQualifiedAccess>]
-    module MessageWithHeaders =
-        let value ({ Value = value }: MessageWithHeaders) = value
-        let headers ({ Headers = headers }: MessageWithHeaders) = headers
-
-    [<Struct>]
-    type Message = {
-        Offset: int64 option
-        Value: string
-    }
-
-    [<RequireQualifiedAccess>]
     module Message =
         let value ({ Value = value }: Message) = value
+        let headers ({ Headers = headers }: Message) = headers
 
     module internal Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId configure =
@@ -105,16 +112,25 @@ module Consumer =
             | _ -> config
 
         let private createConsumer topic (config: ConsumerConfig): Consumer =
-            let consumer = ConsumerBuilder(config).Build()
+            let topicValue = topic |> StreamName.value
 
-            topic
-            |> StreamName.value
-            |> consumer.Subscribe
-            consumer
+            let consumer = ConsumerBuilder(config).Build()
+            topicValue |> consumer.Subscribe
+
+            {
+                KafkaConsumer = consumer
+                Runtime = {
+                    GroupId = config.GroupId
+                    Topic = topicValue
+                    Partition = DefaultPartition
+                }
+            }
 
         let private createConsumerForLastMessage topic (config: ConsumerConfig): Consumer =
+            let topicValue = topic |> StreamName.value
+
             let consumer = ConsumerBuilder(config).Build()
-            let topicPartition = TopicPartition(topic |> StreamName.value, Partition(0))
+            let topicPartition = TopicPartition(topicValue, Partition(DefaultPartition))
 
             let lastMessageOffset =
                 consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
@@ -124,7 +140,15 @@ module Consumer =
                     else offset.High.Value - 1L
 
             consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
-            consumer
+
+            {
+                KafkaConsumer = consumer
+                Runtime = {
+                    GroupId = config.GroupId
+                    Topic = topicValue
+                    Partition = DefaultPartition
+                }
+            }
 
         let internal create brokerList topic groupId configure =
             createDefaultConfig brokerList groupId configure
@@ -144,7 +168,7 @@ module Consumer =
 
         let close log (consumer: Consumer) =
             log "Consumer closing ..."
-            consumer.Close()
+            consumer.KafkaConsumer.Close()
 
     module private Consume =
         let private logStartReading log groupId =
@@ -158,12 +182,12 @@ module Consumer =
             |> sprintf "Reading stream%s ..."
             |> log
 
-        let private consume (consumer: Consumer) =
+        let private consume (consumer: Consumer): ConsumedMessage<KafkaMessage> option =
             try
-                consumer.Consume()
+                consumer.KafkaConsumer.Consume()
                 |> (fun result ->
                     if isNull result then None
-                    else Some result
+                    else Some { Message = result; Runtime = consumer.Runtime }
                 )
             with
             | :? KafkaException as e ->
@@ -174,24 +198,16 @@ module Consumer =
         let consumeMessageValue (consumer: Consumer) =
             consumer
             |> consume
-            |> Option.map (fun result -> result.Message.Value)
+            |> Option.map (ConsumedMessage.map (fun message -> message.Message.Value))
 
         let consumeMessage (consumer: Consumer) =
             consumer
             |> consume
-            |> Option.map (fun result -> {
-                Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
-                Value = result.Message.Value
-            })
-
-        let consumeMessageWithHeaders (consumer: Consumer) =
-            consumer
-            |> consume
-            |> Option.map (fun result -> {
-                Offset = if result.Offset.IsSpecial then None else Some result.Offset.Value
-                Value = result.Message.Value
+            |> Option.map (ConsumedMessage.map (fun message -> {
+                Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
+                Value = message.Message.Value
                 Headers =
-                    match result.Message.Headers with
+                    match message.Message.Headers with
                     | null -> []
                     | headers ->
                         headers
@@ -202,7 +218,7 @@ module Consumer =
                             }
                         )
                         |> List.ofSeq
-            })
+            }))
 
         let private consumeMessageSeq connect consumeMessage log configuration =
             let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve
@@ -215,9 +231,10 @@ module Consumer =
                     logStartReading log configuration.GroupId
 
                     while true do
-                        let message: 'a option = consumer |> consumeMessage
+                        let message: ConsumedMessage<'Message> option = consumer |> consumeMessage
                         if message.IsSome then
                             yield message.Value
+
                 finally
                     markAsDisabled |> MarkAsDisabled.execute
                     Consumer.close log consumer
@@ -251,23 +268,24 @@ module Consumer =
                         Async.Start (computation, cancellationTokenSource.Token)
 
                     while attempt <= maxRetries do
-                        match checker.CheckCluster consumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.Handle with
+                        match checker.CheckCluster consumer.KafkaConsumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.KafkaConsumer.Handle with
                         | true, true ->
                             logStartReading log configuration.GroupId
                             waitForResource <- markAsEnabledAndRestartWaitTime ()
 
-                            intervalChecker.CheckClusterInInterval consumer.Handle
+                            intervalChecker.CheckClusterInInterval consumer.KafkaConsumer.Handle
                             |> AsyncSeq.iter intervalChecker.ClusterHandler
                             |> asyncStartWithCancellation
 
-                            intervalChecker.CheckTopicInInterval configuration.Connection.Topic consumer.Handle
+                            intervalChecker.CheckTopicInInterval configuration.Connection.Topic consumer.KafkaConsumer.Handle
                             |> AsyncSeq.iter (intervalChecker.TopicHandler configuration.Connection.Topic)
                             |> asyncStartWithCancellation
 
                             while true do
-                                let message: 'a option = consumer |> consumeMessage
+                                let message: ConsumedMessage<'Message> option = consumer |> consumeMessage
                                 if message.IsSome then
                                     yield message.Value
+
                         | isBrokerOk, isTopicOk ->
                             let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
 
@@ -294,8 +312,7 @@ module Consumer =
                                 sprintf "%A" configuration.Connection.BrokerList
                                 |> createError ErrorCode.BrokerNotAvailable
                         )
-                        |> Option.map raise
-                        |> ignore
+                        |> Option.iter raise
                 finally
                     log "Cancel checker tokens ..."
                     cancellationTokenSource.Cancel()
@@ -312,87 +329,42 @@ module Consumer =
             | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty log configuration
             | _ -> consumeMessageSeq connect consumeMessage log configuration
 
-    let private readMessage = function
-        | DecodedMessageReader { ReadMessage = readMessage } -> readMessage
-        | ParsedMessageReader { ParseEvent = parse; OnEvent = onEvent } -> parse >> onEvent
-
     //
     // Public api
     //
 
-    // Consume events/messages
+    // Consume events
+
+    type ParseEvent<'Event> = ConsumedMessage<string> -> 'Event
 
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.map parse
 
-    let consumeMessages (configuration: ConsumerConfiguration): Message seq =
-        configuration
-        |> Consume.seq Consumer.connect Consume.consumeMessage
-
-    let consumeLastMessage (configuration: ConsumerConfiguration): Message option =
-        try
-            configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-            |> Seq.tryHead
-        with
-        | _ -> None
-
     let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event option =
         try
             configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-            |> Seq.tryHead
-            |> Option.map (Message.value >> parse)
-        with
-        | _ -> None
-
-    // Consume events/messages with headers
-
-    type ParseEventWithHeaders<'Event> = MessageWithHeaders -> 'Event
-
-    let consumeWithHeaders (configuration: ConsumerConfiguration) (parse: ParseEventWithHeaders<'Event>): 'Event seq =
-        configuration
-        |> Consume.seq Consumer.connect Consume.consumeMessageWithHeaders
-        |> Seq.map parse
-
-    let consumeMessagesWithHeaders (configuration: ConsumerConfiguration): MessageWithHeaders seq =
-        configuration
-        |> Consume.seq Consumer.connect Consume.consumeMessageWithHeaders
-
-    let consumeLastMessageWithHeaders (configuration: ConsumerConfiguration): MessageWithHeaders option =
-        try
-            configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageWithHeaders
-            |> Seq.tryHead
-        with
-        | _ -> None
-
-    let consumeLastWithHeaders (configuration: ConsumerConfiguration) (parse: ParseEventWithHeaders<'Event>): 'Event option =
-        try
-            configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageWithHeaders
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
             |> Seq.tryHead
             |> Option.map parse
         with
         | _ -> None
 
-    // Read messages with reader
+    // Consume events with headers
 
-    [<Obsolete("Use consume instead")>]
-    let read (configuration: ConsumerConfiguration) (reader: MessageReader<'Event>): unit =
-        configuration
-        |> Consume.seq Consumer.connect Consume.consumeMessageValue
-        |> Seq.iter (readMessage reader)
+    type ParseEventMessage<'Event> = ConsumedMessage<Message> -> 'Event
 
-    [<Obsolete("Use consume + Seq.takeWhile instead")>]
-    let readToOffset (configuration: ConsumerConfiguration) maxOffset (reader: MessageReader<'Event>) =
+    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event seq =
         configuration
-        |> consumeMessages
-        |> Seq.takeWhile (fun message ->
-            match message.Offset with
-            | Some currentOffset -> currentOffset < (maxOffset - int64 1)
-            | _ -> true
-        )
-        |> Seq.iter (Message.value >> readMessage reader)
+        |> Consume.seq Consumer.connect Consume.consumeMessage
+        |> Seq.map parse
+
+    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event option =
+        try
+            configuration
+            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
+            |> Seq.tryHead
+            |> Option.map parse
+        with
+        | _ -> None

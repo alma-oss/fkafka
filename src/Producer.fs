@@ -160,10 +160,10 @@ module Producer =
 
             use __ =
                 "Produce event"
-                |> Trace.ChildOf.startActiveFromActive
+                |> Trace.ChildOf.continueOrStartActiveFromActive
                 |> Trace.addTags [
                     "peer.service", "kafka"
-                    "component:", "fkafka"
+                    "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
                     "kafka.topic", topicValue
                     "message_bus.destination", topicValue
                     "kafka.partition", string producer.Partition

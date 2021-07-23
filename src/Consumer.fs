@@ -67,7 +67,10 @@ module Consumer =
     }
 
     [<RequireQualifiedAccess>]
-    module internal ConsumedMessage =
+    module ConsumedMessage =
+        let message ({ Message = message }: ConsumedMessage<'Message>) = message
+        let runtime ({ Runtime = runtime }: ConsumedMessage<'Message>) = runtime
+
         let map f message =
             { Message = f message.Message; Runtime = message.Runtime }
 

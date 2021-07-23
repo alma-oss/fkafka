@@ -19,7 +19,7 @@ Lmc.Kafka
 
 ## Use
 
-### Consume RawEvent sequence
+### Consume Event sequence
 ```fs
 open Lmc.Kafka
 
@@ -30,71 +30,30 @@ let connection = {
 
 let configuration = ConsumerConfiguration.createWithConnection connection GroupId.Random
 
-Consumer.consume configuration RawEvent.Parse
+Consumer.consume configuration (ConsumedMessage.message >> RawEvent.Parse)
 |> Seq.iter (fun event ->
     printfn "Event: %A" event
 )
-```
 
-### Handle raw event
-```fs
-open Lmc.Kafka
-
-let logMessage = printfn "%s"   // this function will be used for logging, it gets a simple message of what kafka lib is doing
-let incrementMessageCount = id  // this function will be used for incrementing a message count, it gets raw event content (string) for each consumed event
-
-let connection = {
-    BrokerList = BrokerList "127.0.0.1:9092,"  // list of all brokers
-    Topic = StreamName "my-topic"              // topic name
-}
-
-let configuration = ConsumerConfiguration.createWithConnection connection GroupId.Random
-
-let onRawContent rawEvent = printfn "%A" rawEvent
-
-onRawContent                        // on RawEvent handler
-|> RawEvent.messageReader           // there are more available readers (see Kafka.{...}Reader)
-|> Consumer.read logMessage configuration incrementMessageCount
-```
-
-### Handle raw event with
-```fs
-open Lmc.Kafka
-
-type DomainEvent =
-    // + concrete domain events
-    | Raw of RawEvent
-
-type DomainHandler = {
-    // + concrete domain event handlers
-    OnRawEvent: RawEvent -> unit
-}
-
-let defaultDomain = {
-    // + concrete domain event handlers
-    OnRawEvent = ignore
-}
-
-type DomainEventReader = MessageReader<DomainEvent>
-
-let DomainEventReader handler: DomainEventReader =
-    {
-        ParseEvent = RawEvent.parse >> DomainEvent.Raw  // parsing a message - if DomainEvent has more types, you have to parse message by your own
-        OnEvent = function
-            // + concrete domain event handlers
-            | Raw event -> event |> handler.OnRawEvent
-    }
-    |> ParsedMessageReader
-
-let runDomainWithHandler kafkaConfiguration =
-    { defaultDomain with
-        // + concrete domain event handlers
-
-        OnRawEvent = fun event ->
-            event.Event |> incrementCount
-    }
-    |> DomainEventReader
-    |> Consumer.read ignore kafkaConfiguration id
+// Or with tracing
+Consumer.consume configuration (fun consumedMessage ->
+    consumedMessage.Message |> parseEvent,
+    "Consume event"
+    |> Trace.FollowFrom.continueOrStartActiveFromActive
+    |> Trace.addTags [
+        "peer.service", "kafka"
+        "component:", "fkafka"
+        "kafka.topic", consumedMessage.Runtime.Topic
+        "message_bus.destination", consumedMessage.Runtime.Topic
+        "kafka.partition", string consumedMessage.Runtime.Partition
+        "kafka.group_id", consumedMessage.Runtime.GroupId
+        "span.kind", "consumer"
+    ]
+)
+|> Seq.iter (fun (event, trace) ->
+    printfn "Event: %A" event
+    printfn "Trace %A" (trace |> Trace.id)
+)
 ```
 
 ## Release
@@ -111,10 +70,10 @@ let runDomainWithHandler kafkaConfiguration =
 
 ### Build
 ```bash
-fake build
+./build.sh
 ```
 
 ### Watch
 ```bash
-fake build target watch
+./build.sh -t watch
 ```

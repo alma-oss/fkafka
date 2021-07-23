@@ -1,5 +1,6 @@
 namespace Lmc.Kafka
 
+open System
 open Lmc.Metrics.ServiceStatus
 
 type ProducerConfiguration = {
@@ -33,22 +34,38 @@ module ProducerConfiguration =
 module Producer =
     open Confluent.Kafka
 
+    /// Partition used for producing - since we don't use them yet, it is always a default one - 0
+    let [<Literal>] private DefaultPartition = 0
+
     //
     // Producer
     //
 
-    type Producer = IProducer<Null, string>
-    type private Message = Message<Null, string>
+    type KafkaProducer = IProducer<Null, string>
+    type private KafkaMessage = Message<Null, string>
 
-    type TopicProducer = {
-        Producer: Producer
-        Topic: StreamName
-    }
+    type TopicProducer =
+        {
+            KafkaProducer: KafkaProducer
+            Topic: StreamName
+            Partition: int
+        }
+
+        member this.Flush() =
+            this.KafkaProducer.Flush()
+
+        member this.Close() =
+            this.Flush()
+            this.KafkaProducer.Dispose()
+
+        interface IDisposable with
+            member this.Dispose() =
+                this.Close()
 
     type NotConnectedProducer = private NotConnectedProducer of (unit -> TopicProducer)
 
     module private Producer =
-        let createProducer (BrokerList brokerList): Producer =
+        let createProducer (BrokerList brokerList): KafkaProducer =
             let config =
                 ProducerConfig(
                     BootstrapServers = brokerList
@@ -57,8 +74,9 @@ module Producer =
 
         let private createTopicProducer (configuration: ProducerConfiguration): TopicProducer =
             {
-                Producer = configuration.Connection.BrokerList |> createProducer
+                KafkaProducer = configuration.Connection.BrokerList |> createProducer
                 Topic = configuration.Connection.Topic
+                Partition = DefaultPartition
             }
 
         let private createProducerWithChecker checker (configuration: ProducerConfiguration): TopicProducer =
@@ -75,7 +93,7 @@ module Producer =
                 while attempt <= maxRetries do
                     match checker.CheckCluster producer.Handle, checker.CheckTopic configuration.Connection.Topic producer.Handle with
                     | true, true ->
-                        yield { Producer = producer; Topic = configuration.Connection.Topic }
+                        yield { KafkaProducer = producer; Topic = configuration.Connection.Topic; Partition = DefaultPartition }
                     | _ ->
                         let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
 
@@ -86,7 +104,6 @@ module Producer =
                 if producers |> Seq.isEmpty then
                     failwithf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
             )
-            |> Seq.take 1
             |> Seq.head
 
         let create configuration =
@@ -94,10 +111,10 @@ module Producer =
             | Some checker -> createProducerWithChecker checker configuration
             | _ -> createTopicProducer configuration
 
-        let flush (producer: Producer) =
+        let flush (producer: KafkaProducer) =
             producer.Flush()
 
-        let close (producer: Producer) =
+        let close (producer: KafkaProducer) =
             producer.Dispose()
 
     //
@@ -108,21 +125,19 @@ module Producer =
     let createUniversalProducer = Producer.createProducer
 
     let prepareProducer configuration = NotConnectedProducer (fun () -> createProducer configuration)
-
     let connect (NotConnectedProducer create) = create()
-    let flush = Producer.flush
-    let close = Producer.close
 
+    [<RequireQualifiedAccess>]
     module TopicProducer =
-        let flush { Producer = producer } = producer |> flush
-        let close { Producer = producer } = producer |> (tee Producer.flush) |> close
+        let flush (producer: TopicProducer) = producer.Flush()
+        let close (producer: TopicProducer) = producer.Close()
 
     //
     // Produce messages
     //
 
-    let private createMessage message =
-        Message(
+    let private createKafkaMessage message =
+        KafkaMessage(
             Value = message
         )
 
@@ -131,42 +146,56 @@ module Producer =
         headers
         |> List.iter (Header.toKafkaHeader >> messageHeaders.Add)
 
-        Message(
+        KafkaMessage(
             Value = message,
             Headers = messageHeaders
         )
 
-    let private produceMessageTo (producer: Producer) topic (message: Message) =
-        producer.Produce(topic |> StreamName.value, message)
+    [<RequireQualifiedAccess>]
+    module private Produce =
+        open Lmc.Tracing
+
+        let messageWith (producer: TopicProducer) (message: KafkaMessage) =
+            let topicValue = producer.Topic |> StreamName.value
+
+            use __ =
+                "Produce event"
+                |> Trace.ChildOf.startActiveFromActive
+                |> Trace.addTags [
+                    "peer.service", "kafka"
+                    "component:", "fkafka"
+                    "kafka.topic", topicValue
+                    "message_bus.destination", topicValue
+                    "kafka.partition", string producer.Partition
+                    "span.kind", "producer"
+                ]
+
+            producer.KafkaProducer.Produce(topicValue, message)
 
     // Produce message only
 
     let produce producer message =
         message
-        |> createMessage
-        |> produceMessageTo producer.Producer producer.Topic
+        |> createKafkaMessage
+        |> Produce.messageWith producer
 
     let produceSingle producer message =
         message |> produce producer
         producer |> TopicProducer.flush
 
-    let produceTo (producer: Producer) topic message =
-        message
-        |> createMessage
-        |> produceMessageTo producer topic
+    let produceTo (producer: KafkaProducer) topic =
+        produce { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }
 
     // Produce message with headers
 
     let produceWithHeaders producer headers message =
         message
         |> createMessageWithHeaders headers
-        |> produceMessageTo producer.Producer producer.Topic
+        |> Produce.messageWith producer
 
     let produceSingleWithHeaders producer headers message =
         message |> produceWithHeaders producer headers
         producer |> TopicProducer.flush
 
-    let produceWithHeadersTo (producer: Producer) topic headers message =
-        message
-        |> createMessageWithHeaders headers
-        |> produceMessageTo producer topic
+    let produceWithHeadersTo (producer: KafkaProducer) topic =
+        produceWithHeaders { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }

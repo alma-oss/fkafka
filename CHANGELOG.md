@@ -38,6 +38,7 @@
         - `produceWithHeaders`
         - `produceSingleWithHeaders`
         - `produceWithHeadersTo`
+- [**BC**] Remove `RawEvent.messageReader` function
 
 ## 13.0.0 - 2021-06-10
 - Add types and modules

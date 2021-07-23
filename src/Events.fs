@@ -368,13 +368,6 @@ module RawEvent =
                 )
         }
 
-    let messageReader onEvent =
-        {
-            ParseEvent = parse
-            OnEvent = onEvent
-        }
-        |> ParsedMessageReader
-
     let toCommon (event: RawEvent) =
         event
         |> Event.toCommon

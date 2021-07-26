@@ -6,6 +6,7 @@
     - `produceWithTrace`
     - `produceSingleWithTrace`
     - `produceWithTraceTo`
+- Fix start time of the consume event trace
 
 ## 15.1.0 - 2021-07-26
 - Update dependencies

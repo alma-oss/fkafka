@@ -189,8 +189,6 @@ module Consumer =
 
         let private consume (consumer: Consumer): TracedMessage<KafkaMessage> option =
             try
-                let startConsuming = DateTimeOffset.Now
-
                 consumer.KafkaConsumer.Consume()
                 |> (fun result ->
                     if isNull result then None
@@ -199,7 +197,7 @@ module Consumer =
                             Message = result
                             Trace =
                                 "Consume event"
-                                |> Trace.FollowFrom.continueOrStartAt (Trace.extractFromKafkaHeaders result.Message.Headers) startConsuming
+                                |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders result.Message.Headers)
                                 |> Trace.addTags [
                                     "peer.service", "kafka"
                                     "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)

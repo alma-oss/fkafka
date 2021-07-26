@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 14.0.0 - 2021-07-26
 - [**BC**] Change `Consumer` module so consumed events have a actual runtime data usable for tracing
     - Add types and modules
         - `ConsumeRuntime` (_contains an actual configuration used for consuming_)

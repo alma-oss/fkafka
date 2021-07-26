@@ -61,6 +61,3 @@ module internal Trace =
             |> Seq.toList
 
         | _ -> headers
-
-    let injectActive headers =
-        headers |> inject (Trace.Active.current())

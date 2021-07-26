@@ -199,3 +199,17 @@ module Producer =
 
     let produceWithHeadersTo (producer: KafkaProducer) topic =
         produceWithHeaders { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }
+
+    // Produce message with trace
+
+    let produceWithTrace producer trace message =
+        message
+        |> createMessageWithHeaders (Trace.inject trace [])
+        |> Produce.messageWith producer
+
+    let produceSingleWithTrace producer trace message =
+        message |> produceWithTrace producer trace
+        producer |> TopicProducer.flush
+
+    let produceWithTraceTo (producer: KafkaProducer) topic =
+        produceWithTrace { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }

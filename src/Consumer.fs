@@ -3,7 +3,9 @@ namespace Lmc.Kafka
 open System.Threading
 open FSharp.Control
 open Confluent.Kafka
+
 open Lmc.Metrics.ServiceStatus
+open Lmc.Tracing
 
 type ConfigureConnsumer = ConsumerConfig -> ConsumerConfig
 
@@ -61,18 +63,19 @@ module Consumer =
     }
 
     [<Struct>]
-    type ConsumedMessage<'Message> = {
+    type TracedMessage<'Message> = {
         Message: 'Message
-        Runtime: ConsumeRuntime
+        Trace: Trace
     }
 
     [<RequireQualifiedAccess>]
-    module ConsumedMessage =
-        let message ({ Message = message }: ConsumedMessage<'Message>) = message
-        let runtime ({ Runtime = runtime }: ConsumedMessage<'Message>) = runtime
+    module TracedMessage =
+        let message ({ Message = message }: TracedMessage<'Message>) = message
+        let trace ({ Trace = trace }: TracedMessage<'Message>) = trace
+        let finish message = message |> tee (trace >> Trace.finish)
 
         let map f message =
-            { Message = f message.Message; Runtime = message.Runtime }
+            { Message = f message.Message; Trace = message.Trace }
 
     type internal Consumer =
         {
@@ -93,13 +96,12 @@ module Consumer =
     type Message = {
         Offset: int64 option
         Value: string
-        Headers: Lmc.Kafka.Header list
     }
 
     [<RequireQualifiedAccess>]
     module Message =
         let value ({ Value = value }: Message) = value
-        let headers ({ Headers = headers }: Message) = headers
+        let offset ({ Offset = offset }: Message) = offset
 
     module internal Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId configure =
@@ -185,12 +187,28 @@ module Consumer =
             |> sprintf "Reading stream%s ..."
             |> log
 
-        let private consume (consumer: Consumer): ConsumedMessage<KafkaMessage> option =
+        let private consume (consumer: Consumer): TracedMessage<KafkaMessage> option =
             try
+                let startConsuming = DateTimeOffset.Now
+
                 consumer.KafkaConsumer.Consume()
                 |> (fun result ->
                     if isNull result then None
-                    else Some { Message = result; Runtime = consumer.Runtime }
+                    else
+                        Some {
+                            Message = result
+                            Trace =
+                                "Consume event"
+                                |> Trace.FollowFrom.continueOrStartAt (Trace.extractFromKafkaHeaders result.Message.Headers) startConsuming
+                                |> Trace.addTags [
+                                    "peer.service", "kafka"
+                                    "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
+                                    "kafka.topic", consumer.Runtime.Topic
+                                    "message_bus.destination", consumer.Runtime.Topic
+                                    "kafka.partition", string consumer.Runtime.Partition
+                                    "span.kind", "consumer"
+                                ]
+                        }
                 )
             with
             | :? KafkaException as e ->
@@ -201,26 +219,14 @@ module Consumer =
         let consumeMessageValue (consumer: Consumer) =
             consumer
             |> consume
-            |> Option.map (ConsumedMessage.map (fun message -> message.Message.Value))
+            |> Option.map (TracedMessage.map (fun message -> message.Message.Value))
 
         let consumeMessage (consumer: Consumer) =
             consumer
             |> consume
-            |> Option.map (ConsumedMessage.map (fun message -> {
+            |> Option.map (TracedMessage.map (fun message -> {
                 Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
                 Value = message.Message.Value
-                Headers =
-                    match message.Message.Headers with
-                    | null -> []
-                    | headers ->
-                        headers
-                        |> Seq.map (fun i ->
-                            {
-                                Key = HeaderKey i.Key
-                                Value = i.GetValueBytes()
-                            }
-                        )
-                        |> List.ofSeq
             }))
 
         let private consumeMessageSeq connect consumeMessage log configuration =
@@ -234,7 +240,7 @@ module Consumer =
                     logStartReading log configuration.GroupId
 
                     while true do
-                        let message: ConsumedMessage<'Message> option = consumer |> consumeMessage
+                        let message: TracedMessage<'Message> option = consumer |> consumeMessage
                         if message.IsSome then
                             yield message.Value
 
@@ -285,7 +291,7 @@ module Consumer =
                             |> asyncStartWithCancellation
 
                             while true do
-                                let message: ConsumedMessage<'Message> option = consumer |> consumeMessage
+                                let message: TracedMessage<'Message> option = consumer |> consumeMessage
                                 if message.IsSome then
                                     yield message.Value
 
@@ -336,38 +342,38 @@ module Consumer =
     // Public api
     //
 
-    // Consume events
+    // Consume events as string values
 
-    type ParseEvent<'Event> = ConsumedMessage<string> -> 'Event
+    type ParseEvent<'Event> = TracedMessage<string> -> 'Event
 
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
-        |> Seq.map parse
+        |> Seq.map (TracedMessage.finish >> parse)
 
     let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event option =
         try
             configuration
             |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
             |> Seq.tryHead
-            |> Option.map parse
+            |> Option.map (TracedMessage.finish >> parse)
         with
         | _ -> None
 
-    // Consume events with headers
+    // Consume events as Messages
 
-    type ParseEventMessage<'Event> = ConsumedMessage<Message> -> 'Event
+    type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
 
     let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
-        |> Seq.map parse
+        |> Seq.map (TracedMessage.finish >> parse)
 
     let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event option =
         try
             configuration
             |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
             |> Seq.tryHead
-            |> Option.map parse
+            |> Option.map (TracedMessage.finish >> parse)
         with
         | _ -> None

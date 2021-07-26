@@ -65,11 +65,17 @@ module Header =
             Value = value |> Encoding.ASCII.GetBytes
         }
 
-    let internal toKafkaHeader header =
+    let internal toKafkaHeader (header: Header) =
         Confluent.Kafka.Header(
             header.Key |> HeaderKey.value,
             header.Value
         )
+
+    let internal fromKafkaHeader (header: Confluent.Kafka.IHeader): Header =
+        {
+            Key = HeaderKey header.Key
+            Value = header.GetValueBytes()
+        }
 
 //
 // Service Status

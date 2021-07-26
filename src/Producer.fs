@@ -12,6 +12,9 @@ type ProducerConfiguration = {
 
 [<RequireQualifiedAccess>]
 module ProducerConfiguration =
+    /// Partition used for producing - since we don't use them yet, it is always a default one - 0
+    let [<Literal>] internal DefaultPartition = 0
+
     let createWithConnection connection =
         {
             Connection = connection
@@ -30,107 +33,114 @@ module ProducerConfiguration =
 // Producer
 //
 
+open Confluent.Kafka
+
+type private KafkaProducer = KafkaProducer of IProducer<Null, string>
+type private KafkaMessage = Message<Null, string>
+
+[<RequireQualifiedAccess>]
+module private KafkaProducer =
+    let value (KafkaProducer kafkaProducer) = kafkaProducer
+
+[<Struct>]
+type private ProduceRuntime = {
+    /// Acutal list of bootstrap servers used for producing
+    BootstrapServers: string
+    /// Acutal topic used for producing
+    Topic: string
+    /// Acutal partition used for producing
+    Partition: int
+}
+
+type Producer =
+    private {
+        KafkaProducer: KafkaProducer
+        Topic: StreamName
+        Runtime: ProduceRuntime
+    }
+
+    member this.Flush() =
+        (this.KafkaProducer |> KafkaProducer.value).Flush()
+
+    member this.Close() =
+        this.Flush()
+        (this.KafkaProducer |> KafkaProducer.value).Dispose()
+
+    interface IDisposable with
+        member this.Dispose() =
+            this.Close()
+
 [<RequireQualifiedAccess>]
 module Producer =
-    open Confluent.Kafka
+    type NotConnected = private NotConnectedProducer of (unit -> Producer)
 
-    /// Partition used for producing - since we don't use them yet, it is always a default one - 0
-    let [<Literal>] private DefaultPartition = 0
+    let private createKafkaProducer (BrokerList brokerList): KafkaProducer =
+        let config =
+            ProducerConfig(
+                BootstrapServers = brokerList
+            )
+        ProducerBuilder(config).Build() |> KafkaProducer
 
-    //
-    // Producer
-    //
-
-    type KafkaProducer = IProducer<Null, string>
-    type private KafkaMessage = Message<Null, string>
-
-    type TopicProducer =
+    let private createProducer (configuration: ProducerConfiguration): Producer =
         {
-            KafkaProducer: KafkaProducer
-            Topic: StreamName
-            Partition: int
+            KafkaProducer = configuration.Connection.BrokerList |> createKafkaProducer
+            Topic = configuration.Connection.Topic
+            Runtime = {
+                BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
+                Topic = configuration.Connection.Topic |> StreamName.value
+                Partition = ProducerConfiguration.DefaultPartition
+            }
         }
 
-        member this.Flush() =
-            this.KafkaProducer.Flush()
+    let private createProducerWithChecker checker (configuration: ProducerConfiguration): Producer =
+        let maxRetries = checker.MaxRetries
+        let log = configuration.Logger |> Logger.resolve
+        let markAsDisabled = configuration.MarkAsDisabled |> ServiceStatus.resolveMarkAsDisabled
 
-        member this.Close() =
-            this.Flush()
-            this.KafkaProducer.Dispose()
+        let mutable attempt = 1<Attempt>
+        let mutable waitForResource = checker.WaitForResourceDefault
 
-        interface IDisposable with
-            member this.Dispose() =
-                this.Close()
+        let (KafkaProducer producer) = createKafkaProducer configuration.Connection.BrokerList
 
-    type NotConnectedProducer = private NotConnectedProducer of (unit -> TopicProducer)
+        seq {
+            while attempt <= maxRetries do
+                match checker.CheckCluster producer.Handle, checker.CheckTopic configuration.Connection.Topic producer.Handle with
+                | true, true ->
+                    yield {
+                        KafkaProducer = KafkaProducer producer
+                        Topic = configuration.Connection.Topic
+                        Runtime = {
+                            BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
+                            Topic = configuration.Connection.Topic |> StreamName.value
+                            Partition = ProducerConfiguration.DefaultPartition
+                        }
+                    }
+                | _ ->
+                    let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
 
-    module private Producer =
-        let createProducer (BrokerList brokerList): KafkaProducer =
-            let config =
-                ProducerConfig(
-                    BootstrapServers = brokerList
-                )
-            ProducerBuilder(config).Build()
-
-        let private createTopicProducer (configuration: ProducerConfiguration): TopicProducer =
-            {
-                KafkaProducer = configuration.Connection.BrokerList |> createProducer
-                Topic = configuration.Connection.Topic
-                Partition = DefaultPartition
-            }
-
-        let private createProducerWithChecker checker (configuration: ProducerConfiguration): TopicProducer =
-            let maxRetries = checker.MaxRetries
-            let log = configuration.Logger |> Logger.resolve
-            let markAsDisabled = configuration.MarkAsDisabled |> ServiceStatus.resolveMarkAsDisabled
-
-            let mutable attempt = 1<Attempt>
-            let mutable waitForResource = checker.WaitForResourceDefault
-
-            let producer = createProducer configuration.Connection.BrokerList
-
-            seq {
-                while attempt <= maxRetries do
-                    match checker.CheckCluster producer.Handle, checker.CheckTopic configuration.Connection.Topic producer.Handle with
-                    | true, true ->
-                        yield { KafkaProducer = producer; Topic = configuration.Connection.Topic; Partition = DefaultPartition }
-                    | _ ->
-                        let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
-
-                        attempt <- currentAttempt
-                        waitForResource <- waitFor
-            }
-            |> tee (fun producers ->
-                if producers |> Seq.isEmpty then
-                    failwithf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
-            )
-            |> Seq.head
-
-        let create configuration =
-            match configuration.Checker with
-            | Some checker -> createProducerWithChecker checker configuration
-            | _ -> createTopicProducer configuration
-
-        let flush (producer: KafkaProducer) =
-            producer.Flush()
-
-        let close (producer: KafkaProducer) =
-            producer.Dispose()
+                    attempt <- currentAttempt
+                    waitForResource <- waitFor
+        }
+        |> tee (fun producers ->
+            if producers |> Seq.isEmpty then
+                failwithf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
+        )
+        |> Seq.head
 
     //
     // Public Producer functions
     //
 
-    let createProducer = Producer.create
-    let createUniversalProducer = Producer.createProducer
+    let create configuration =
+        match configuration.Checker with
+        | Some checker -> createProducerWithChecker checker configuration
+        | _ -> createProducer configuration
 
-    let prepareProducer configuration = NotConnectedProducer (fun () -> createProducer configuration)
-    let connect (NotConnectedProducer create) = create()
+    let prepare configuration = NotConnectedProducer (fun () -> createProducer configuration)
+    let connect (NotConnectedProducer connect) = connect()
 
-    [<RequireQualifiedAccess>]
-    module TopicProducer =
-        let flush (producer: TopicProducer) = producer.Flush()
-        let close (producer: TopicProducer) = producer.Close()
+    let flush (producer: Producer) = producer.Flush()
+    let close (producer: Producer) = producer.Close()
 
     //
     // Produce messages
@@ -155,22 +165,23 @@ module Producer =
     module private Produce =
         open Lmc.Tracing
 
-        let messageWith (producer: TopicProducer) (message: KafkaMessage) =
-            let topicValue = producer.Topic |> StreamName.value
+        let messageWith (producer: Producer) (message: KafkaMessage) =
+            let topicValue = producer.Runtime.Topic
 
             use __ =
                 "Produce event"
                 |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers)
                 |> Trace.addTags [
                     "peer.service", "kafka"
+                    "peer.address", producer.Runtime.BootstrapServers
                     "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
                     "kafka.topic", topicValue
                     "message_bus.destination", topicValue
-                    "kafka.partition", string producer.Partition
+                    "kafka.partition", string producer.Runtime.Partition
                     "span.kind", "producer"
                 ]
 
-            producer.KafkaProducer.Produce(topicValue, message)
+            (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, message)
 
     // Produce message only
 
@@ -181,10 +192,7 @@ module Producer =
 
     let produceSingle producer message =
         message |> produce producer
-        producer |> TopicProducer.flush
-
-    let produceTo (producer: KafkaProducer) topic =
-        produce { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }
+        producer |> flush
 
     // Produce message with headers
 
@@ -195,10 +203,7 @@ module Producer =
 
     let produceSingleWithHeaders producer headers message =
         message |> produceWithHeaders producer headers
-        producer |> TopicProducer.flush
-
-    let produceWithHeadersTo (producer: KafkaProducer) topic =
-        produceWithHeaders { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }
+        producer |> flush
 
     // Produce message with trace
 
@@ -209,7 +214,4 @@ module Producer =
 
     let produceSingleWithTrace producer trace message =
         message |> produceWithTrace producer trace
-        producer |> TopicProducer.flush
-
-    let produceWithTraceTo (producer: KafkaProducer) topic =
-        produceWithTrace { KafkaProducer = producer; Topic = topic; Partition = DefaultPartition }
+        producer |> flush

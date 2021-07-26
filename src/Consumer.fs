@@ -21,6 +21,9 @@ type ConsumerConfiguration = {
 
 [<RequireQualifiedAccess>]
 module ConsumerConfiguration =
+    /// Partition used for consuming - since we don't use them yet, it is always a default one - 0
+    let [<Literal>] internal DefaultPartition = 0
+
     let createWithConnection connection groupId =
         {
             Connection = connection
@@ -46,14 +49,21 @@ module ConsumerConfiguration =
 module Consumer =
     open System
 
-    /// Partition used for consuming - since we don't use them yet, it is always a default one - 0
-    let [<Literal>] private DefaultPartition = 0
+    type internal KafkaConsumer = KafkaConsumer of IConsumer<Ignore, string>
+    type internal KafkaMessage = KafkaMessage of ConsumeResult<Ignore, string>
 
-    type internal KafkaConsumer = IConsumer<Ignore, string>
-    type internal KafkaMessage = ConsumeResult<Ignore, string>
+    [<RequireQualifiedAccess>]
+    module private KafkaMessage =
+        let value (KafkaMessage message) = message
+
+    [<RequireQualifiedAccess>]
+    module private KafkaConsumer =
+        let value (KafkaConsumer kafkaConsumer) = kafkaConsumer
 
     [<Struct>]
-    type ConsumeRuntime = {
+    type internal ConsumeRuntime = {
+        /// Acutal list of bootstrap servers used for consuming
+        BootstrapServers: string
         /// Acutal group id used for consuming
         GroupId: string
         /// Acutal topic used for consuming
@@ -74,10 +84,10 @@ module Consumer =
         let trace ({ Trace = trace }: TracedMessage<'Message>) = trace
         let finish message = message |> tee (trace >> Trace.finish)
 
-        let map f message =
-            { Message = f message.Message; Trace = message.Trace }
+        let internal map f message =
+            { Message = message.Message |> KafkaMessage.value |> f; Trace = message.Trace }
 
-    type internal Consumer =
+    type private Consumer =
         {
             /// Actual kafka consumer used for consuming events
             KafkaConsumer: KafkaConsumer
@@ -86,7 +96,7 @@ module Consumer =
         }
 
         member this.Close() =
-            this.KafkaConsumer.Close()
+            (this.KafkaConsumer |> KafkaConsumer.value).Close()
 
         interface IDisposable with
             member this.Dispose() =
@@ -103,7 +113,7 @@ module Consumer =
         let value ({ Value = value }: Message) = value
         let offset ({ Offset = offset }: Message) = offset
 
-    module internal Consumer =
+    module private Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId configure =
             let config =
                 ConsumerConfig(
@@ -123,11 +133,12 @@ module Consumer =
             topicValue |> consumer.Subscribe
 
             {
-                KafkaConsumer = consumer
+                KafkaConsumer = KafkaConsumer consumer
                 Runtime = {
+                    BootstrapServers = config.BootstrapServers
                     GroupId = config.GroupId
                     Topic = topicValue
-                    Partition = DefaultPartition
+                    Partition = ConsumerConfiguration.DefaultPartition
                 }
             }
 
@@ -135,7 +146,7 @@ module Consumer =
             let topicValue = topic |> StreamName.value
 
             let consumer = ConsumerBuilder(config).Build()
-            let topicPartition = TopicPartition(topicValue, Partition(DefaultPartition))
+            let topicPartition = TopicPartition(topicValue, Partition(ConsumerConfiguration.DefaultPartition))
 
             let lastMessageOffset =
                 consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
@@ -147,19 +158,20 @@ module Consumer =
             consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
 
             {
-                KafkaConsumer = consumer
+                KafkaConsumer = KafkaConsumer consumer
                 Runtime = {
+                    BootstrapServers = config.BootstrapServers
                     GroupId = config.GroupId
                     Topic = topicValue
-                    Partition = DefaultPartition
+                    Partition = ConsumerConfiguration.DefaultPartition
                 }
             }
 
-        let internal create brokerList topic groupId configure =
+        let private create brokerList topic groupId configure =
             createDefaultConfig brokerList groupId configure
             |> createConsumer topic
 
-        let internal createForLastMessage brokerList topic configure =
+        let private createForLastMessage brokerList topic configure =
             createDefaultConfig brokerList GroupId.Random configure
             |> createConsumerForLastMessage topic
 
@@ -173,7 +185,7 @@ module Consumer =
 
         let close log (consumer: Consumer) =
             log "Consumer closing ..."
-            consumer.KafkaConsumer.Close()
+            consumer.Close()
 
     module private Consume =
         let private logStartReading log groupId =
@@ -189,21 +201,23 @@ module Consumer =
 
         let private consume (consumer: Consumer): TracedMessage<KafkaMessage> option =
             try
-                consumer.KafkaConsumer.Consume()
+                (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
                 |> (fun result ->
                     if isNull result then None
                     else
                         Some {
-                            Message = result
+                            Message = KafkaMessage result
                             Trace =
                                 "Consume event"
                                 |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders result.Message.Headers)
                                 |> Trace.addTags [
                                     "peer.service", "kafka"
+                                    "peer.address", consumer.Runtime.BootstrapServers
                                     "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
                                     "kafka.topic", consumer.Runtime.Topic
                                     "message_bus.destination", consumer.Runtime.Topic
                                     "kafka.partition", string consumer.Runtime.Partition
+                                    "kafka.group_id", consumer.Runtime.GroupId
                                     "span.kind", "consumer"
                                 ]
                         }
@@ -268,6 +282,8 @@ module Consumer =
                 use consumer: Consumer = configuration |> connect log
                 use cancellationTokenSource = new CancellationTokenSource()
 
+                let (KafkaConsumer kafkaConsumer) = consumer.KafkaConsumer
+
                 try
                     let mutable consumeError: ConsumeError option = None
 
@@ -275,16 +291,16 @@ module Consumer =
                         Async.Start (computation, cancellationTokenSource.Token)
 
                     while attempt <= maxRetries do
-                        match checker.CheckCluster consumer.KafkaConsumer.Handle, checker.CheckTopic configuration.Connection.Topic consumer.KafkaConsumer.Handle with
+                        match checker.CheckCluster kafkaConsumer.Handle, checker.CheckTopic configuration.Connection.Topic kafkaConsumer.Handle with
                         | true, true ->
                             logStartReading log configuration.GroupId
                             waitForResource <- markAsEnabledAndRestartWaitTime ()
 
-                            intervalChecker.CheckClusterInInterval consumer.KafkaConsumer.Handle
+                            intervalChecker.CheckClusterInInterval kafkaConsumer.Handle
                             |> AsyncSeq.iter intervalChecker.ClusterHandler
                             |> asyncStartWithCancellation
 
-                            intervalChecker.CheckTopicInInterval configuration.Connection.Topic consumer.KafkaConsumer.Handle
+                            intervalChecker.CheckTopicInInterval configuration.Connection.Topic kafkaConsumer.Handle
                             |> AsyncSeq.iter (intervalChecker.TopicHandler configuration.Connection.Topic)
                             |> asyncStartWithCancellation
 

@@ -5,3 +5,4 @@ FSharp.Data
 Lmc.ErrorHandling
 Lmc.Metrics
 Lmc.ServiceIdentification
+Lmc.Tracing

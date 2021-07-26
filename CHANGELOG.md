@@ -2,6 +2,43 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Change `Consumer` module so consumed events have a actual runtime data usable for tracing
+    - Add types and modules
+        - `ConsumeRuntime` (_contains an actual configuration used for consuming_)
+        - `ConsumedEvent<'Event>` (_wrapping an 'Event with a runtime configuration used for consume_)
+    - Remove deprecated functions
+        - `read`
+        - `readToOffset`
+    - Remove types and modules
+        - `Message`
+        - `DecodedMessageReader`
+        - `ParsedMessageReader`
+        - `MessageReader`
+    - Rename type `MessageWithHeaders` to `Message`
+    - Remove functions
+        - `consumeMessages`
+        - `consumeLastMessage`
+        - `consumeMessagesWithHeaders`
+        - `consumeLastMessageWithHeaders`
+    - Change `ParseEvent` signature to get `ConsumedEvent<string>` instead of just `string`
+    - Rename type `ParseEventWithHeaders` to `ParseEventMessage`
+    - Rename function `consumeWithHeaders` to `consumeMessages`
+    - Rename function `consumeLastWithHeaders` to `consumeLastMessage`
+- [**BC**] Change `Producer` module to trace all produce functions
+    - Rename type `Producer` to `KafkaProducer`
+    - Implement `IDisposable` with `TopicProducer`
+    - Add `RequiredQualifiedAccess` to `TopicProducer` module
+    - Remove functions
+        - `Producer.flush` (_use `TopicProducer` module or instance instead_)
+        - `Producer.close` (_use `TopicProducer` module or instance instead_)
+    - Trace all **produce** functions
+        - `produce`
+        - `produceSingle`
+        - `produceTo`
+        - `produceWithHeaders`
+        - `produceSingleWithHeaders`
+        - `produceWithHeadersTo`
+- [**BC**] Remove `RawEvent.messageReader` function
 
 ## 13.0.0 - 2021-06-10
 - Add types and modules

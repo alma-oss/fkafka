@@ -14,7 +14,7 @@ type ToolDir =
     | Local of string
 
 // ========================================================================================================
-// === F# / Library fake build ==================================================================== 1.3.1 =
+// === F# / Library fake build ==================================================================== 1.4.0 =
 // --------------------------------------------------------------------------------------------------------
 // Options:
 //  - no-clean   - disables clean of dirs in the first step (required on CI)
@@ -34,7 +34,7 @@ type ToolDir =
 let project = "Kafka"
 let summary = "Library for reading messages or producing messages to/from stream."
 
-let release = ReleaseNotes.parse (System.IO.File.ReadAllLines "CHANGELOG.md" |> Seq.filter ((<>) "## Unreleased"))
+let changeLog = "CHANGELOG.md"
 let gitCommit = Information.getCurrentSHA1(".")
 let gitBranch = Information.getBranchName(".")
 
@@ -109,6 +109,20 @@ module private DotnetCore =
         if proc.ExitCode <> 0 then failwithf "Command '%s' failed in %s." command dir
         (proc.StandardOutput.ReadToEnd(), proc.StandardError.ReadToEnd())
 
+[<RequireQualifiedAccess>]
+module ProjectSources =
+    let library =
+        !! "./*.fsproj"
+        ++ "src/*.fsproj"
+        ++ "src/**/*.fsproj"
+
+    let tests =
+        !! "tests/*.fsproj"
+
+    let all =
+        library
+        ++ "tests/*.fsproj"
+
 // --------------------------------------------------------------------------------------------------------
 // 3. Targets for FAKE
 // --------------------------------------------------------------------------------------------------------
@@ -122,6 +136,8 @@ Target.create "Clean" <| skipOn "no-clean" (fun _ ->
 )
 
 Target.create "AssemblyInfo" (fun _ ->
+    let release = ReleaseNotes.parse (System.IO.File.ReadAllLines changeLog |> Seq.filter ((<>) "## Unreleased"))
+
     let getAssemblyInfoAttributes projectName =
         [
             AssemblyInfo.Title projectName
@@ -134,7 +150,7 @@ Target.create "AssemblyInfo" (fun _ ->
             AssemblyInfo.Metadata("gitcommit", gitCommit)
         ]
 
-    let getProjectDetails projectPath =
+    let getProjectDetails (projectPath: string) =
         let projectName = System.IO.Path.GetFileNameWithoutExtension(projectPath)
         (
             projectPath,
@@ -143,21 +159,15 @@ Target.create "AssemblyInfo" (fun _ ->
             (getAssemblyInfoAttributes projectName)
         )
 
-    !! "src/**/*.fsproj"
-    ++ "./*.fsproj"
-    ++ "tests/**/*.fsproj"
+    ProjectSources.all
     |> Seq.map getProjectDetails
-    |> Seq.iter (fun (projFileName, _, folderName, attributes) ->
-        match projFileName with
-        | proj when proj.EndsWith("fsproj") -> AssemblyInfoFile.createFSharp (folderName </> "AssemblyInfo.fs") attributes
-        | _ -> ()
+    |> Seq.iter (fun (_, _, folderName, attributes) ->
+        AssemblyInfoFile.createFSharp (folderName </> "AssemblyInfo.fs") attributes
     )
 )
 
 Target.create "Build" (fun _ ->
-    !! "src/**/*.fsproj"
-    ++ "./*.fsproj"
-    ++ "tests/**/*.fsproj"
+    ProjectSources.library
     |> Seq.iter (DotNet.build id)
 )
 
@@ -177,9 +187,7 @@ Target.create "Lint" <| skipOn "no-lint" (fun _ ->
         |> List.rev
         |> check
 
-    !! "src/**/*.fsproj"
-    ++ "./*.fsproj"
-    ++ "tests/**/*.fsproj"
+    ProjectSources.all
     |> Seq.map (fun fsproj ->
         match toolsDir with
         | Global ->
@@ -196,7 +204,7 @@ Target.create "Lint" <| skipOn "no-lint" (fun _ ->
 )
 
 Target.create "Tests" (fun _ ->
-    if !! "tests/**/*.fsproj" |> Seq.isEmpty
+    if ProjectSources.tests |> Seq.isEmpty
     then Trace.tracefn "There are no tests yet."
     else DotnetCore.runOrFail "run" "tests"
 )

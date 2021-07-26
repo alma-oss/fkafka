@@ -2,6 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Remove `Headers` from `Message` type
+- [**BC**] Remove `ConsumedMessage`  type and module
+- Add `TracedMessage` type and module
+- [**BC**] Change `ParseEvent` and `ParseEventMessage` to get `TracedMessage`
+- Trace `Consumer.consume` functions automatically
 
 ## 14.0.0 - 2021-07-26
 - [**BC**] Change `Consumer` module so consumed events have a actual runtime data usable for tracing

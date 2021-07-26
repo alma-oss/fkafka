@@ -17,6 +17,7 @@
     <Compile Include="src/Types.fs" />
     <Compile Include="src/Admin.fs" />
     <Compile Include="src/Checker.fs" />
+    <Compile Include="src/Trace.fs" />
     <Compile Include="src/Consumer.fs" />
     <Compile Include="src/Events.fs" />
     <Compile Include="src/Producer.fs" />

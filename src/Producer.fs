@@ -160,7 +160,7 @@ module Producer =
 
             use __ =
                 "Produce event"
-                |> Trace.ChildOf.continueOrStartActiveFromActive
+                |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers)
                 |> Trace.addTags [
                     "peer.service", "kafka"
                     "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)

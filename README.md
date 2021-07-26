@@ -30,29 +30,20 @@ let connection = {
 
 let configuration = ConsumerConfiguration.createWithConnection connection GroupId.Random
 
-Consumer.consume configuration (ConsumedMessage.message >> RawEvent.Parse)
+Consumer.consume configuration (TracedMessage.message >> RawEvent.Parse)
 |> Seq.iter (fun event ->
     printfn "Event: %A" event
 )
 
 // Or with tracing
-Consumer.consume configuration (fun consumedMessage ->
-    consumedMessage.Message |> parseEvent,
-    "Consume event"
-    |> Trace.FollowFrom.continueOrStartActiveFromActive
-    |> Trace.addTags [
-        "peer.service", "kafka"
-        "component:", "fkafka"
-        "kafka.topic", consumedMessage.Runtime.Topic
-        "message_bus.destination", consumedMessage.Runtime.Topic
-        "kafka.partition", string consumedMessage.Runtime.Partition
-        "kafka.group_id", consumedMessage.Runtime.GroupId
-        "span.kind", "consumer"
-    ]
+Consumer.consume configuration (fun tracedMessage ->
+    tracedMessage.Message |> parseEvent,
+    "Parse event" |> Trace.ChildOf.start tracedMessage.Trace
 )
-|> Seq.iter (fun (event, trace) ->
+|> Seq.iter (fun (event, parseTrace) ->
     printfn "Event: %A" event
-    printfn "Trace %A" (trace |> Trace.id)
+    printfn "Trace %A" (parseTrace |> Trace.id)
+    parseTrace |> Trace.finish
 )
 ```
 

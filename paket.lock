@@ -517,7 +517,7 @@ NUGET
       Suave (>= 2.5.6)
     Lmc.ServiceIdentification (5.2.0)
       FSharp.Core (>= 5.0)
-    Lmc.Tracing (1.1.0)
+    Lmc.Tracing (1.2.0)
       FSharp.Core (>= 5.0.2)
       FSharp.Data (>= 4.1.1)
       Jaeger (>= 1.0.2)
@@ -525,7 +525,7 @@ NUGET
       Lmc.ErrorHandling (>= 5.0)
 GIT
   remote: ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git
-     (79b6454e5ed90f6b499186d668c31dcea67f67d9)
+     (471d2aeee3b24ed24b27553f13d0e94e61575234)
       path: /nuget/
 GROUP Build
 STORAGE: NONE

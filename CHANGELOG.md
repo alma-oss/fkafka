@@ -2,6 +2,24 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `Producer` functions
+    - `produceWithTrace`
+    - `produceSingleWithTrace`
+    - `produceWithTraceTo`
+- Fix start time of the consume event trace
+- Add runtime groupId information to the consume event tag
+- Add `peer.address` tag to consumer and producer trace
+- [**BC**] Remove `Producer` functions
+    - `produceTo`
+    - `produceWithHeadersTo`
+    - `produceWithTraceTo`
+    - `createUniversalProducer`
+- [**BC**] Make `KafkaProducer` internal
+- [**BC**] Rename `TopicProducer` type and module to `Producer`
+- [**BC**] Make `Producer` attributes internal
+- [**BC**] Rename functions
+    - `createProducer` to `create`
+    - `prepareProducer` to `prepare`
 
 ## 15.1.0 - 2021-07-26
 - Update dependencies

@@ -11,6 +11,11 @@ open Lmc.Metrics.ServiceStatus
 [<Measure>] type Attempt
 
 type BrokerList = BrokerList of string
+
+[<RequireQualifiedAccess>]
+module BrokerList =
+    let value (BrokerList brokerList) = brokerList
+
 type StreamName =
     | StreamName of string
     | Instance of Instance

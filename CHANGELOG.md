@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 16.1.0 - 2021-08-03
 - Update extracting trace from headers to work with new version of Lmc.Trace
 
 ## 16.0.0 - 2021-07-27

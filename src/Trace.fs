@@ -36,12 +36,12 @@ module internal Trace =
         let httpHeadersCarrier = TextMapExtractAdapter(headers |> kafkaHeadersToDictionary) :> ITextMap
 
         match Tracer.tracer().Extract(BuiltinFormats.HttpHeaders, httpHeadersCarrier) with
-        | null -> Inactive
-        | context -> Context context
+        | null -> None
+        | context -> Some (TraceContext context)
 
     let extractFromKafkaHeaders (headers: Confluent.Kafka.Headers) () =
         match headers with
-        | null -> Trace.Inactive
+        | null -> None
         | headers ->
             headers
             |> Seq.map Header.fromKafkaHeader
@@ -50,7 +50,7 @@ module internal Trace =
 
     let inject trace (headers: Header list) =
         match trace |> Trace.context with
-        | Some context ->
+        | Some (TraceContext context) ->
             let headersDict = headers |> kafkaHeadersToDictionary
             let kafkaHeadersCarrier = TextMapInjectAdapter(headersDict) :> ITextMap
 

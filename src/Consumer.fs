@@ -209,7 +209,7 @@ module Consumer =
                             Message = KafkaMessage result
                             Trace =
                                 "Consume event"
-                                |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders result.Message.Headers)
+                                |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders result.Message.Headers >> Trace.ofContextOption)
                                 |> Trace.addTags [
                                     "peer.service", "kafka"
                                     "peer.address", consumer.Runtime.BootstrapServers

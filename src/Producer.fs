@@ -170,7 +170,7 @@ module Producer =
 
             use __ =
                 "Produce event"
-                |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers)
+                |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers >> Trace.ofContextOption)
                 |> Trace.addTags [
                     "peer.service", "kafka"
                     "peer.address", producer.Runtime.BootstrapServers

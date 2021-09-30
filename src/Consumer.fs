@@ -41,6 +41,14 @@ module ConsumerConfiguration =
             Topic = topic
         }
 
+[<RequireQualifiedAccess>]
+type ConsumeError =
+    | KafkaException of KafkaException
+    | RuntimeException of exn
+    | BrokerError
+    | TopicError
+    | MaxRetriesReached of KafkaException
+
 //
 // Consumer
 //
@@ -70,6 +78,8 @@ module Consumer =
         Topic: string
         /// Acutal partition used for consuming
         Partition: int
+
+        UseTracing: bool
     }
 
     [<Struct>]
@@ -139,6 +149,7 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
+                    UseTracing = Trace.Check.isTracerAvailable()
                 }
             }
 
@@ -164,6 +175,7 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
+                    UseTracing = Trace.Check.isTracerAvailable()
                 }
             }
 
@@ -188,6 +200,8 @@ module Consumer =
             consumer.Close()
 
     module private Consume =
+        type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError> option
+
         let private logStartReading log groupId =
             let groupIdToLog = function
                 | Id groupId -> groupId
@@ -199,49 +213,53 @@ module Consumer =
             |> sprintf "Reading stream%s ..."
             |> log
 
-        let private consume (consumer: Consumer): TracedMessage<KafkaMessage> option =
+        let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
-                (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
-                |> (fun result ->
-                    if isNull result then None
-                    else
-                        Some {
-                            Message = KafkaMessage result
-                            Trace =
-                                "Consume event"
-                                |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders result.Message.Headers >> Trace.ofContextOption)
-                                |> Trace.addTags [
-                                    "peer.service", "kafka"
-                                    "peer.address", consumer.Runtime.BootstrapServers
-                                    "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
-                                    "kafka.topic", consumer.Runtime.Topic
-                                    "message_bus.destination", consumer.Runtime.Topic
-                                    "kafka.partition", string consumer.Runtime.Partition
-                                    "kafka.group_id", consumer.Runtime.GroupId
-                                    "span.kind", "consumer"
-                                ]
-                        }
-                )
+                let consumeResult = (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
+
+                if isNull consumeResult then None
+                else
+                    let trace =
+                        if consumer.Runtime.UseTracing then
+                            "Consume event"
+                            |> Trace.FollowFrom.continueOrStart (Trace.extractFromKafkaHeaders consumeResult.Message.Headers >> Trace.ofContextOption)
+                            |> Trace.addTags [
+                                "peer.service", "kafka"
+                                "peer.address", consumer.Runtime.BootstrapServers
+                                "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
+                                "kafka.topic", consumer.Runtime.Topic
+                                "message_bus.destination", consumer.Runtime.Topic
+                                "kafka.partition", string consumer.Runtime.Partition
+                                "kafka.group_id", consumer.Runtime.GroupId
+                                "span.kind", "consumer"
+                            ]
+                        else Inactive
+
+                    Some (Ok {
+                        Message = KafkaMessage consumeResult
+                        Trace = trace
+                    })
             with
-            | :? KafkaException as e ->
-                // explicitly print error, because consume is in seq {} and it handles exceptions and just prints a message
-                eprintfn "ConsumeError: %A" e
-                raise e
+            | :? KafkaException as e -> Result.Error (ConsumeError.KafkaException e) |> Some
+            | e -> Result.Error (ConsumeError.RuntimeException e) |> Some
 
-        let consumeMessageValue (consumer: Consumer) =
+        /// Helper function to map TracedMessage on Message result inside an Option
+        let private map f = Option.map (Result.map (TracedMessage.map f))
+
+        let consumeMessageValue: ConsumeMessage<string> = fun consumer ->
             consumer
             |> consume
-            |> Option.map (TracedMessage.map (fun message -> message.Message.Value))
+            |> map (fun message -> message.Message.Value)
 
-        let consumeMessage (consumer: Consumer) =
+        let consumeMessage: ConsumeMessage<Message> = fun consumer ->
             consumer
             |> consume
-            |> Option.map (TracedMessage.map (fun message -> {
+            |> map (fun message -> {
                 Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
                 Value = message.Message.Value
-            }))
+            })
 
-        let private consumeMessageSeq connect consumeMessage log configuration =
+        let private consumeMessageSeq connect (consumeMessage: ConsumeMessage<'Message>) log configuration =
             let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve
 
             seq {
@@ -252,20 +270,17 @@ module Consumer =
                     logStartReading log configuration.GroupId
 
                     while true do
-                        let message: TracedMessage<'Message> option = consumer |> consumeMessage
+                        let message = consumer |> consumeMessage
                         if message.IsSome then
                             yield message.Value
 
                 finally
                     markAsDisabled |> MarkAsDisabled.execute
+                    // todo - tohle by tady idealne nebylo, log muze byt primo v close, protoze se predava do connectu, tak muze byt v RuntimeParts
                     Consumer.close log consumer
             }
 
-        type private ConsumeError =
-            | BrokerError
-            | TopicError
-
-        let private consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker log configuration =
+        let private consumeMessageSeqWithChecker connect (consumeMessage: ConsumeMessage<'Message>) checker intervalChecker log configuration =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
@@ -305,7 +320,7 @@ module Consumer =
                             |> asyncStartWithCancellation
 
                             while true do
-                                let message: TracedMessage<'Message> option = consumer |> consumeMessage
+                                let message = consumer |> consumeMessage
                                 if message.IsSome then
                                     yield message.Value
 
@@ -317,34 +332,39 @@ module Consumer =
 
                             let error =
                                 match isBrokerOk, isTopicOk with
-                                | true, false -> TopicError
-                                | _ -> BrokerError
+                                | true, false -> ConsumeError.TopicError
+                                | _ -> ConsumeError.BrokerError
                             consumeError <- Some error
 
                     if attempt > maxRetries then
                         let createError code problem =
                             let message = sprintf "Max attempts was reached and connection could not be estabilished. Problem is with %s." problem
-                            KafkaException(Confluent.Kafka.Error(code, message))
+                            ConsumeError.MaxRetriesReached <| KafkaException(Confluent.Kafka.Error(code, message))
 
-                        consumeError
-                        |> Option.map (function
-                            | TopicError ->
-                                sprintf "%A" configuration.Connection.Topic
-                                |> createError ErrorCode.TopicException
-                            | BrokerError ->
-                                sprintf "%A" configuration.Connection.BrokerList
-                                |> createError ErrorCode.BrokerNotAvailable
-                        )
-                        |> Option.iter raise
+                        let consumeError =
+                            consumeError
+                            |> Option.map (function
+                                | ConsumeError.TopicError ->
+                                    sprintf "%A" configuration.Connection.Topic
+                                    |> createError ErrorCode.TopicException
+                                | ConsumeError.BrokerError ->
+                                    sprintf "%A" configuration.Connection.BrokerList
+                                    |> createError ErrorCode.BrokerNotAvailable
+                                | consumeError -> consumeError
+                            )
+
+                        if consumeError.IsSome then
+                            yield Result.Error consumeError.Value
                 finally
                     log "Cancel checker tokens ..."
                     cancellationTokenSource.Cancel()
 
                     markAsDisabled |> MarkAsDisabled.execute
+                    // todo - tady je taky close - viz jiny todo
                     consumer |> Consumer.close log
             }
 
-        let seq connect consumeMessage configuration =
+        let seq connect (consumeMessage: ConsumeMessage<'Message>) configuration =
             let log = configuration.Logger |> Logger.resolve
 
             match (configuration.Checker, configuration.IntervalChecker) with
@@ -360,34 +380,28 @@ module Consumer =
 
     type ParseEvent<'Event> = TracedMessage<string> -> 'Event
 
-    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event seq =
+    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): Result<'Event, ConsumeError> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
-        |> Seq.map (TracedMessage.finish >> parse)
+        |> Seq.map (Result.map (TracedMessage.finish >> parse))
 
-    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): 'Event option =
-        try
-            configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
-            |> Seq.tryHead
-            |> Option.map (TracedMessage.finish >> parse)
-        with
-        | _ -> None
+    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): Result<'Event, ConsumeError> option =
+        configuration
+        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
+        |> Seq.tryHead
+        |> Option.map (Result.map (TracedMessage.finish >> parse))
 
     // Consume events as Messages
 
     type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
 
-    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event seq =
+    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): Result<'Event, ConsumeError> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
-        |> Seq.map (TracedMessage.finish >> parse)
+        |> Seq.map (Result.map (TracedMessage.finish >> parse))
 
-    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): 'Event option =
-        try
-            configuration
-            |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-            |> Seq.tryHead
-            |> Option.map (TracedMessage.finish >> parse)
-        with
-        | _ -> None
+    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): Result<'Event, ConsumeError> option =
+        configuration
+        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
+        |> Seq.tryHead
+        |> Option.map (Result.map (TracedMessage.finish >> parse))

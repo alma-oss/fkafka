@@ -2,6 +2,7 @@ FSharp.Core
 FSharp.Data
 Confluent.Kafka
 FSharp.Control.AsyncSeq
+Lmc.Environment
 Lmc.ErrorHandling
 Lmc.Metrics
 Lmc.ServiceIdentification

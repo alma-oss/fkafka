@@ -5,12 +5,10 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Kafka.fsproj">
-      <Name>Kafka.fsproj</Name>
-    </ProjectReference>
+    <ProjectReference Include="../Kafka.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Headers.fs" />
+    <Compile Include="Consumer.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

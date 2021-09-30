@@ -2,22 +2,21 @@
 
 open System
 open Lmc.Kafka
-open MF.ConsoleStyle
 
 [<EntryPoint>]
 let main argv =
-    Console.title "Consume messages"
+    printfn "Consume messages"
     let brokerList = "kfall-1.dev1.services.lmc:9092"
-    let topic = "consents-intentStream-development-v1"
+    let topic = "consents-interactionCollectorStream-local-v1"
     //let groupId = "consumer-group-id-v8"
 
-    Console.options "Configuration" [
+    (* printfn "Configuration: %A" [
         //("groupId", groupId)
         ("brokerList", brokerList)
         ("topic", topic)
-    ]
+    ] *)
 
-    Console.message "Start consuming ..."
+    printfn "Start consuming ..."
     let connection = {
         BrokerList = BrokerList brokerList
         Topic = StreamName topic
@@ -25,21 +24,18 @@ let main argv =
     let configuration =
         { ConsumerConfiguration.createWithConnection connection GroupId.Random with
             Logger = Some {
-                Log = Console.messagef "[Kafka] %s"
+                Log = printfn "[Kafka] %s"
             }
             Checker = Some Checker.defaultChecker
         }
 
-    Consumer.consumeLastMessage configuration
-    |> printfn "%A"
+    let mutable i = 0
 
-    printfn "Expected: 0e4405ca-9866-43a9-a005-0e44c11b904a"
+    Consumer.consume configuration id
+    |> Seq.iter (function
+        | Ok { Message = m } -> printfn "Message[%A]: string[%A]" i m.Length
+        | Error e -> printfn "Error: %A" e
+    )
 
-    //DecodedMessageReader { ReadMessage = (printfn " - Replay Event: %A") }
-    //|> Consumer.consumeStreamToOffset configuration (int64 14)
-
-    //DecodedMessageReader { ReadMessage = (printfn " - Event: %A") }
-    //|> Consumer.consumeStreamWithGroupId Console.message configuration groupId
-
-    Console.success "Done"
+    printfn "====\nDone\n===="
     0 // return an integer exit code

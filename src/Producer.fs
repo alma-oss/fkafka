@@ -50,6 +50,8 @@ type private ProduceRuntime = {
     Topic: string
     /// Acutal partition used for producing
     Partition: int
+
+    UseTracing: bool
 }
 
 type Producer =
@@ -89,6 +91,7 @@ module Producer =
                 BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                 Topic = configuration.Connection.Topic |> StreamName.value
                 Partition = ProducerConfiguration.DefaultPartition
+                UseTracing = Trace.Check.isTracerAvailable()
             }
         }
 
@@ -113,6 +116,7 @@ module Producer =
                             BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                             Topic = configuration.Connection.Topic |> StreamName.value
                             Partition = ProducerConfiguration.DefaultPartition
+                            UseTracing = Trace.Check.isTracerAvailable()
                         }
                     }
                 | _ ->
@@ -169,17 +173,19 @@ module Producer =
             let topicValue = producer.Runtime.Topic
 
             use __ =
-                "Produce event"
-                |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers >> Trace.ofContextOption)
-                |> Trace.addTags [
-                    "peer.service", "kafka"
-                    "peer.address", producer.Runtime.BootstrapServers
-                    "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
-                    "kafka.topic", topicValue
-                    "message_bus.destination", topicValue
-                    "kafka.partition", string producer.Runtime.Partition
-                    "span.kind", "producer"
-                ]
+                if producer.Runtime.UseTracing then
+                    "Produce event"
+                    |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers >> Trace.ofContextOption)
+                    |> Trace.addTags [
+                        "peer.service", "kafka"
+                        "peer.address", producer.Runtime.BootstrapServers
+                        "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
+                        "kafka.topic", topicValue
+                        "message_bus.destination", topicValue
+                        "kafka.partition", string producer.Runtime.Partition
+                        "span.kind", "producer"
+                    ]
+                else Inactive
 
             (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, message)
 

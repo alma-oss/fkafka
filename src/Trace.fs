@@ -8,6 +8,21 @@ module internal Trace =
 
     open Lmc.Tracing
 
+    [<RequireQualifiedAccess>]
+    module Check =
+        open Lmc.Environment
+
+        let private getEnv env =
+            let envs = Envs.getAll()
+            envs
+            |> Map.tryFind env
+            |> Result.ofOption $"{env} is not found."
+
+        let isTracerAvailable () =
+            match Tracer.checkEnvironment getEnv with
+            | Ok () -> true
+            | Error _ -> false
+
     [<AutoOpen>]
     module private Headers =
         open System.Collections.Generic

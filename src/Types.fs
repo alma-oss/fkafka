@@ -86,6 +86,7 @@ module Header =
 // Service Status
 //
 
+[<RequireQualifiedAccess>]
 module internal MarkAsDisabled =
     open System
 
@@ -101,6 +102,7 @@ module internal MarkAsDisabled =
 
         (currentAttempt, nextTimeWaitFor)
 
+[<RequireQualifiedAccess>]
 module internal ServiceStatus =
     let resolve = function
         | Some { MarkAsEnabled = markAsEnabled; MarkAsDisabled = markAsDisabled } -> (markAsEnabled, markAsDisabled)
@@ -109,20 +111,6 @@ module internal ServiceStatus =
     let resolveMarkAsDisabled = function
         | Some markAsDisabled -> markAsDisabled
         | _ -> MarkAsDisabled ignore
-
-//
-// Logger
-//
-
-type Logger = {
-    Log: string -> unit
-}
-
-[<RequireQualifiedAccess>]
-module internal Logger =
-    let resolve = function
-        | Some { Log = log } -> log
-        | _ -> ignore
 
 //
 // Connection
@@ -138,7 +126,7 @@ type ConnectionConfiguration = {
 //
 
 [<AutoOpen>]
-module internal GenericHelpers =
+module internal Utils =
     let tee f a =
         f a
         a

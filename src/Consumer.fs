@@ -3,6 +3,7 @@ namespace Lmc.Kafka
 open System.Threading
 open FSharp.Control
 open Confluent.Kafka
+open Microsoft.Extensions.Logging
 
 open Lmc.Metrics.ServiceStatus
 open Lmc.Tracing
@@ -13,7 +14,7 @@ type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
     GroupId: GroupId
     Configure: ConfigureConnsumer option
-    Logger: Logger option
+    Logger: ILogger option
     Checker: Checker option
     IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
@@ -103,9 +104,14 @@ module Consumer =
             KafkaConsumer: KafkaConsumer
             /// Actual Runtime information about consume
             Runtime: ConsumeRuntime
+            Logger: ILogger option
         }
 
+        member this.LogDebug(message: string): unit =
+            this.Logger |> Option.iter (fun logger -> logger.LogDebug(message))
+
         member this.Close() =
+            this.LogDebug("Consumer closing ...")
             (this.KafkaConsumer |> KafkaConsumer.value).Close()
 
         interface IDisposable with
@@ -136,7 +142,7 @@ module Consumer =
             | Some configure -> configure config
             | _ -> config
 
-        let private createConsumer topic (config: ConsumerConfig): Consumer =
+        let private createConsumer logger topic (config: ConsumerConfig): Consumer =
             let topicValue = topic |> StreamName.value
 
             let consumer = ConsumerBuilder(config).Build()
@@ -149,11 +155,12 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
-                    UseTracing = Trace.Check.isTracerAvailable()
+                    UseTracing = Tracer.Check.isTracerAvailable()
                 }
+                Logger = logger
             }
 
-        let private createConsumerForLastMessage topic (config: ConsumerConfig): Consumer =
+        let private createConsumerForLastMessage logger topic (config: ConsumerConfig): Consumer =
             let topicValue = topic |> StreamName.value
 
             let consumer = ConsumerBuilder(config).Build()
@@ -175,34 +182,34 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
-                    UseTracing = Trace.Check.isTracerAvailable()
+                    UseTracing = Tracer.Check.isTracerAvailable()
                 }
+                Logger = logger
             }
 
-        let private create brokerList topic groupId configure =
+        let private create logger brokerList topic groupId configure =
             createDefaultConfig brokerList groupId configure
-            |> createConsumer topic
+            |> createConsumer logger topic
 
-        let private createForLastMessage brokerList topic configure =
+        let private createForLastMessage logger brokerList topic configure =
             createDefaultConfig brokerList GroupId.Random configure
-            |> createConsumerForLastMessage topic
+            |> createConsumerForLastMessage logger topic
 
-        let connect log configuration =
-            log "Connecting ..."
-            create configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configuration.Configure
+        let connect (configuration: ConsumerConfiguration) =
+            configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting"))
+            create configuration.Logger configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configuration.Configure
 
-        let connectLastMessage log configuration =
-            log "Connecting for last message ..."
-            createForLastMessage configuration.Connection.BrokerList configuration.Connection.Topic configuration.Configure
+        let connectLastMessage (configuration: ConsumerConfiguration) =
+            configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting for last message ..."))
+            createForLastMessage configuration.Logger configuration.Connection.BrokerList configuration.Connection.Topic configuration.Configure
 
-        let close log (consumer: Consumer) =
-            log "Consumer closing ..."
+        let close (consumer: Consumer) =
             consumer.Close()
 
     module private Consume =
         type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError> option
 
-        let private logStartReading log groupId =
+        let private createStartReadingMessage groupId =
             let groupIdToLog = function
                 | Id groupId -> groupId
                 | Random -> ""
@@ -211,7 +218,6 @@ module Consumer =
             |> GroupId.map (sprintf " with %s")
             |> groupIdToLog
             |> sprintf "Reading stream%s ..."
-            |> log
 
         let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
@@ -243,7 +249,7 @@ module Consumer =
             | :? KafkaException as e -> Result.Error (ConsumeError.KafkaException e) |> Some
             | e -> Result.Error (ConsumeError.RuntimeException e) |> Some
 
-        /// Helper function to map TracedMessage on Message result inside an Option
+        /// Helper function to combine all map functions
         let private map f = Option.map (Result.map (TracedMessage.map f))
 
         let consumeMessageValue: ConsumeMessage<string> = fun consumer ->
@@ -259,15 +265,15 @@ module Consumer =
                 Value = message.Message.Value
             })
 
-        let private consumeMessageSeq connect (consumeMessage: ConsumeMessage<'Message>) log configuration =
+        let private consumeMessageSeq connect (consumeMessage: ConsumeMessage<'Message>) configuration =
             let (markAsEnabled, markAsDisabled) = configuration.ServiceStatus |> ServiceStatus.resolve
 
             seq {
-                use consumer: Consumer = configuration |> connect log
-
                 try
+                    use consumer: Consumer = configuration |> connect
+
+                    configuration.GroupId |> createStartReadingMessage |> consumer.LogDebug
                     markAsEnabled |> MarkAsEnabled.execute
-                    logStartReading log configuration.GroupId
 
                     while true do
                         let message = consumer |> consumeMessage
@@ -276,11 +282,9 @@ module Consumer =
 
                 finally
                     markAsDisabled |> MarkAsDisabled.execute
-                    // todo - tohle by tady idealne nebylo, log muze byt primo v close, protoze se predava do connectu, tak muze byt v RuntimeParts
-                    Consumer.close log consumer
             }
 
-        let private consumeMessageSeqWithChecker connect (consumeMessage: ConsumeMessage<'Message>) checker intervalChecker log configuration =
+        let private consumeMessageSeqWithChecker connect (consumeMessage: ConsumeMessage<'Message>) checker intervalChecker configuration =
             let maxRetries = checker.MaxRetries
             let defaultWaitForResource = checker.WaitForResourceDefault
 
@@ -294,7 +298,7 @@ module Consumer =
                 defaultWaitForResource
 
             seq {
-                use consumer: Consumer = configuration |> connect log
+                use consumer: Consumer = configuration |> connect
                 use cancellationTokenSource = new CancellationTokenSource()
 
                 let (KafkaConsumer kafkaConsumer) = consumer.KafkaConsumer
@@ -308,7 +312,7 @@ module Consumer =
                     while attempt <= maxRetries do
                         match checker.CheckCluster kafkaConsumer.Handle, checker.CheckTopic configuration.Connection.Topic kafkaConsumer.Handle with
                         | true, true ->
-                            logStartReading log configuration.GroupId
+                            configuration.GroupId |> createStartReadingMessage |> consumer.LogDebug
                             waitForResource <- markAsEnabledAndRestartWaitTime ()
 
                             intervalChecker.CheckClusterInInterval kafkaConsumer.Handle
@@ -325,7 +329,7 @@ module Consumer =
                                     yield message.Value
 
                         | isBrokerOk, isTopicOk ->
-                            let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
+                            let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait consumer.LogDebug attempt maxRetries markAsDisabled waitForResource
 
                             attempt <- currentAttempt
                             waitForResource <- waitFor
@@ -356,21 +360,17 @@ module Consumer =
                         if consumeError.IsSome then
                             yield Result.Error consumeError.Value
                 finally
-                    log "Cancel checker tokens ..."
+                    consumer.LogDebug "Cancel checker tokens ..."
                     cancellationTokenSource.Cancel()
 
                     markAsDisabled |> MarkAsDisabled.execute
-                    // todo - tady je taky close - viz jiny todo
-                    consumer |> Consumer.close log
             }
 
         let seq connect (consumeMessage: ConsumeMessage<'Message>) configuration =
-            let log = configuration.Logger |> Logger.resolve
-
             match (configuration.Checker, configuration.IntervalChecker) with
-            | Some checker, Some intervalChecker -> consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker log configuration
-            | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty log configuration
-            | _ -> consumeMessageSeq connect consumeMessage log configuration
+            | Some checker, Some intervalChecker -> consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker configuration
+            | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty configuration
+            | _ -> consumeMessageSeq connect consumeMessage configuration
 
     //
     // Public api

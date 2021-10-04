@@ -1,11 +1,13 @@
 namespace Lmc.Kafka
 
 open System
+open Microsoft.Extensions.Logging
 open Lmc.Metrics.ServiceStatus
+open Lmc.Tracing
 
 type ProducerConfiguration = {
     Connection: ConnectionConfiguration
-    Logger: Logger option
+    Logger: ILogger option
     Checker: Checker option
     MarkAsDisabled: MarkAsDisabled option
 }
@@ -59,13 +61,19 @@ type Producer =
         KafkaProducer: KafkaProducer
         Topic: StreamName
         Runtime: ProduceRuntime
+        Logger: ILogger option
     }
 
+    member internal this.LogDebug(message: string): unit =
+        this.Logger |> Option.iter (fun logger -> logger.LogDebug(message))
+
     member this.Flush() =
+        this.LogDebug("Flushing producer ...")
         (this.KafkaProducer |> KafkaProducer.value).Flush()
 
     member this.Close() =
         this.Flush()
+        this.LogDebug("Closing producer ...")
         (this.KafkaProducer |> KafkaProducer.value).Dispose()
 
     interface IDisposable with
@@ -84,6 +92,7 @@ module Producer =
         ProducerBuilder(config).Build() |> KafkaProducer
 
     let private createProducer (configuration: ProducerConfiguration): Producer =
+        configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting producer ..."))
         {
             KafkaProducer = configuration.Connection.BrokerList |> createKafkaProducer
             Topic = configuration.Connection.Topic
@@ -91,18 +100,19 @@ module Producer =
                 BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                 Topic = configuration.Connection.Topic |> StreamName.value
                 Partition = ProducerConfiguration.DefaultPartition
-                UseTracing = Trace.Check.isTracerAvailable()
+                UseTracing = Tracer.Check.isTracerAvailable()
             }
+            Logger = configuration.Logger
         }
 
     let private createProducerWithChecker checker (configuration: ProducerConfiguration): Producer =
         let maxRetries = checker.MaxRetries
-        let log = configuration.Logger |> Logger.resolve
         let markAsDisabled = configuration.MarkAsDisabled |> ServiceStatus.resolveMarkAsDisabled
 
         let mutable attempt = 1<Attempt>
         let mutable waitForResource = checker.WaitForResourceDefault
 
+        configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting producer ..."))
         let (KafkaProducer producer) = createKafkaProducer configuration.Connection.BrokerList
 
         seq {
@@ -116,10 +126,12 @@ module Producer =
                             BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                             Topic = configuration.Connection.Topic |> StreamName.value
                             Partition = ProducerConfiguration.DefaultPartition
-                            UseTracing = Trace.Check.isTracerAvailable()
+                            UseTracing = Tracer.Check.isTracerAvailable()
                         }
+                        Logger = configuration.Logger
                     }
                 | _ ->
+                    let log message = configuration.Logger |> Option.iter (fun logger -> logger.LogDebug(message))
                     let (currentAttempt, waitFor) = MarkAsDisabled.executeAndWait log attempt maxRetries markAsDisabled waitForResource
 
                     attempt <- currentAttempt
@@ -127,7 +139,9 @@ module Producer =
         }
         |> tee (fun producers ->
             if producers |> Seq.isEmpty then
-                failwithf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
+                sprintf "There is no connected producer. Problem is with either %A and/or a %A." configuration.Connection.BrokerList configuration.Connection.Topic
+                |> tee (fun message -> configuration.Logger |> Option.iter (fun logger -> logger.LogError(message)))
+                |> failwith
         )
         |> Seq.head
 
@@ -167,8 +181,6 @@ module Producer =
 
     [<RequireQualifiedAccess>]
     module private Produce =
-        open Lmc.Tracing
-
         let messageWith (producer: Producer) (message: KafkaMessage) =
             let topicValue = producer.Runtime.Topic
 

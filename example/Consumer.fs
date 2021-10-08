@@ -11,7 +11,10 @@ let main argv =
 
     let brokerList = "kfall-1.dev1.services.lmc:9092"
     let topic = "consents-interactionCollectorStream-local-v1"
-    //let groupId = "consumer-group-id-v8"
+    let groupId = "consumer-group-id-v16"
+
+    /// default: true
+    let enableAutocommit = false
 
     (* printfn "Configuration: %A" [
         //("groupId", groupId)
@@ -32,20 +35,62 @@ let main argv =
         Topic = StreamName topic
     }
     let configuration =
-        { ConsumerConfiguration.createWithConnection connection GroupId.Random with
+        { ConsumerConfiguration.createWithConnection connection (GroupId.Id groupId) with
             Logger = Some <| loggerFactory.CreateLogger("Kafka")
             Checker = Some Checker.defaultChecker
+            CommitMessage =
+                if not enableAutocommit then CommitMessage.Manually FailOnNotCommittedMessage.WithException
+                else CommitMessage.Automatically
         }
+
+    // todo - vyzkouset
+    // - 1. precist stream, dat take 50 a cist znovu
+    // - 2. cist stream a v prubehu skoncit chybou ve spracovani
+
+    // - zapnout manual committing a zopakovat 1.->2.
+    // - pak to zkusit s StoreOffsetem
 
     let mutable i = 0
 
-    Consumer.consume configuration id
-    |> Seq.map (fun m -> i <- i + 1; m)
-    |> Seq.take 50
-    |> Seq.iter (function
-        | Ok { Message = m } -> logger.LogTrace (sprintf "[%02i]Message: string[{length}]" i, m.Length)
-        | Error e -> logger.LogError (sprintf "[%02i]Error: {error}" i, e)
-    )
+    let execute () =
+        Consumer.consumeMessages configuration id
+        |> Seq.map (fun m -> i <- i + 1; m)
+        |> Seq.take 50
+        |> Seq.iter (function
+            | Ok { Message = m } ->
+                logger.LogTrace (sprintf "[%02i] Message<O:{offset}>: string[{length}]" i, m.Message.Offset, m.Message.Value.Length)
+
+                System.Threading.Thread.Sleep 1000
+
+                if not enableAutocommit then
+                    //if System.Random().Next(0, 6) >= 4 then
+                    if m.Message.Offset > Some (int64 40) then
+                        logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> SKIP commit" i, m.Message.Offset)
+                        //failwithf "Commit skipped!"
+
+                    else
+                        match m.Commit() with
+                        | Ok () ->
+                            logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> is commited" i, m.Message.Offset)
+                        | Error e ->
+                            logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+                            raise e
+
+            | Error (ConsumeError.PreviousMessageWasNotCommited as e) ->
+                logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+                failwithf "Commit skipped!"
+            | Error e -> logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+        )
+
+    // try
+    execute()
+    //execute()
+    (* with _ ->
+        async {
+            logger.LogInformation "waiting ..."
+            do! Async.Sleep 2000
+        }
+        |> Async.RunSynchronously *)
 
     logger.LogInformation "====\nDone\n===="
     0 // return an integer exit code

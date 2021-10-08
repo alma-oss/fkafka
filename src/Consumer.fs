@@ -8,7 +8,34 @@ open Microsoft.Extensions.Logging
 open Lmc.Metrics.ServiceStatus
 open Lmc.Tracing
 
-type ConfigureConnsumer = ConsumerConfig -> ConsumerConfig
+[<System.Obsolete("Define a configuration in Consumer configuration directly and do not use this hidden configure.")>]
+type ConfigureConnsumer =
+    ConfigureConnsumer of (ConsumerConfig -> ConsumerConfig)
+
+[<RequireQualifiedAccess>]
+module ConfigureConnsumer =
+    /// see https://docs.confluent.io/clients-confluent-kafka-dotnet/current/overview.html#synchronous-commits
+    let [<System.Obsolete("todo remove")>] setUpManualCommiting = ConfigureConnsumer (fun config ->
+        config.EnableAutoCommit <- false
+        config
+    )
+
+    /// see https://docs.confluent.io/clients-confluent-kafka-dotnet/current/overview.html#store-offsets
+    let [<System.Obsolete("todo remove")>] setUpManualOffsetStoring = ConfigureConnsumer (fun config ->
+        config.EnableAutoCommit <- true
+        config.EnableAutoOffsetStore <- false
+        config
+    )
+
+[<RequireQualifiedAccess>]
+type FailOnNotCommittedMessage =
+    | WithException
+    | IgnoringAndContinue
+
+[<RequireQualifiedAccess>]
+type CommitMessage =
+    | Automatically
+    | Manually of FailOnNotCommittedMessage
 
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
@@ -18,6 +45,9 @@ type ConsumerConfiguration = {
     Checker: Checker option
     IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
+
+    /// Default: Automatically (same as Kafka.EnableAutocommit: true)
+    CommitMessage: CommitMessage
 }
 
 [<RequireQualifiedAccess>]
@@ -34,6 +64,7 @@ module ConsumerConfiguration =
             IntervalChecker = None
             ServiceStatus = None
             Configure = None
+            CommitMessage = CommitMessage.Automatically
         }
 
     let createWithDefaults brokerList topic =
@@ -49,6 +80,7 @@ type ConsumeError =
     | BrokerError
     | TopicError
     | MaxRetriesReached of KafkaException
+    | PreviousMessageWasNotCommited
 
 //
 // Consumer
@@ -59,7 +91,7 @@ module Consumer =
     open System
 
     type internal KafkaConsumer = KafkaConsumer of IConsumer<Ignore, string>
-    type internal KafkaMessage = KafkaMessage of ConsumeResult<Ignore, string>
+    type KafkaMessage = internal KafkaMessage of ConsumeResult<Ignore, string>
 
     [<RequireQualifiedAccess>]
     module private KafkaMessage =
@@ -80,11 +112,16 @@ module Consumer =
         /// Acutal partition used for consuming
         Partition: int
 
+        /// If autocommit is not enabled, consumer client must commit the processed result manually
+        IsAutocommitEnabled: bool
+        FailOnNotCommittedMessage: bool
+
         UseTracing: bool
     }
 
     [<Struct>]
     type TracedMessage<'Message> = {
+        Commit: unit -> Result<unit, exn>
         Message: 'Message
         Trace: Trace
     }
@@ -95,8 +132,15 @@ module Consumer =
         let trace ({ Trace = trace }: TracedMessage<'Message>) = trace
         let finish message = message |> tee (trace >> Trace.finish)
 
-        let internal map f message =
-            { Message = message.Message |> KafkaMessage.value |> f; Trace = message.Trace }
+        let map f message =
+            { Message = message.Message |> f; Trace = message.Trace; Commit = message.Commit }
+
+    type TracedMessageResult<'Message> = Result<TracedMessage<'Message>, ConsumeError>
+
+    [<RequireQualifiedAccess>]
+    module TracedMessageResult =
+        let map f =
+            Result.map (TracedMessage.map f)
 
     type private Consumer =
         {
@@ -129,8 +173,14 @@ module Consumer =
         let value ({ Value = value }: Message) = value
         let offset ({ Offset = offset }: Message) = offset
 
+    type ConsumedMessage<'Message> = {
+        Commit: unit -> Result<unit, exn>
+        Message: 'Message
+    }
+
+    [<RequireQualifiedAccess>]
     module private Consumer =
-        let private createDefaultConfig (BrokerList brokerList) groupId configure =
+        let private createDefaultConfig (BrokerList brokerList) groupId commitMessage configure =
             let config =
                 ConsumerConfig(
                     GroupId = (groupId |> GroupId.value),
@@ -138,12 +188,16 @@ module Consumer =
                     AutoOffsetReset = (AutoOffsetReset.Earliest |> Nullable)
                 )
 
+            match commitMessage with
+            | CommitMessage.Automatically -> config.EnableAutoCommit <- true
+            | CommitMessage.Manually _ -> config.EnableAutoCommit <- false
+
             match configure with
-            | Some configure -> configure config
+            | Some (ConfigureConnsumer configure) -> configure config
             | _ -> config
 
-        let private createConsumer logger topic (config: ConsumerConfig): Consumer =
-            let topicValue = topic |> StreamName.value
+        let private createConsumer configuration (config: ConsumerConfig): Consumer =
+            let topicValue = configuration.Connection.Topic |> StreamName.value
 
             let consumer = ConsumerBuilder(config).Build()
             topicValue |> consumer.Subscribe
@@ -155,13 +209,20 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
+
+                    IsAutocommitEnabled = config.EnableAutoCommit.GetValueOrDefault true
+                    FailOnNotCommittedMessage =
+                        match configuration.CommitMessage with
+                        | CommitMessage.Manually FailOnNotCommittedMessage.WithException -> true
+                        | _ -> false
+
                     UseTracing = Tracer.Check.isTracerAvailable()
                 }
-                Logger = logger
+                Logger = configuration.Logger
             }
 
-        let private createConsumerForLastMessage logger topic (config: ConsumerConfig): Consumer =
-            let topicValue = topic |> StreamName.value
+        let private createConsumerForLastMessage configuration (config: ConsumerConfig): Consumer =
+            let topicValue = configuration.Connection.Topic |> StreamName.value
 
             let consumer = ConsumerBuilder(config).Build()
             let topicPartition = TopicPartition(topicValue, Partition(ConsumerConfiguration.DefaultPartition))
@@ -182,30 +243,38 @@ module Consumer =
                     GroupId = config.GroupId
                     Topic = topicValue
                     Partition = ConsumerConfiguration.DefaultPartition
+
+                    IsAutocommitEnabled = config.EnableAutoCommit.GetValueOrDefault true
+                    FailOnNotCommittedMessage =
+                        match configuration.CommitMessage with
+                        | CommitMessage.Manually FailOnNotCommittedMessage.WithException -> true
+                        | _ -> false
+
                     UseTracing = Tracer.Check.isTracerAvailable()
                 }
-                Logger = logger
+                Logger = configuration.Logger
             }
 
-        let private create logger brokerList topic groupId configure =
-            createDefaultConfig brokerList groupId configure
-            |> createConsumer logger topic
+        let private create (configuration: ConsumerConfiguration) =
+            createDefaultConfig configuration.Connection.BrokerList configuration.GroupId configuration.CommitMessage configuration.Configure
+            |> createConsumer configuration
 
-        let private createForLastMessage logger brokerList topic configure =
-            createDefaultConfig brokerList GroupId.Random configure
-            |> createConsumerForLastMessage logger topic
+        let private createForLastMessage (configuration: ConsumerConfiguration) =
+            createDefaultConfig configuration.Connection.BrokerList GroupId.Random configuration.CommitMessage configuration.Configure
+            |> createConsumerForLastMessage configuration
 
         let connect (configuration: ConsumerConfiguration) =
             configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting"))
-            create configuration.Logger configuration.Connection.BrokerList configuration.Connection.Topic configuration.GroupId configuration.Configure
+            create configuration
 
         let connectLastMessage (configuration: ConsumerConfiguration) =
             configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting for last message ..."))
-            createForLastMessage configuration.Logger configuration.Connection.BrokerList configuration.Connection.Topic configuration.Configure
+            createForLastMessage configuration
 
         let close (consumer: Consumer) =
             consumer.Close()
 
+    [<RequireQualifiedAccess>]
     module private Consume =
         type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError> option
 
@@ -219,11 +288,31 @@ module Consumer =
             |> groupIdToLog
             |> sprintf "Reading stream%s ..."
 
+        type private LastMessageManuallyCommitted =
+            | NoConsumedMessage
+            | MessageIsNotCommitedYet
+            | MessageIsCommited
+
+        // todo: this should be in state: State<Topic * GroupId, LastMessageManuallyCommitted>
+        let mutable private isLastMessageManuallyCommited: LastMessageManuallyCommitted = NoConsumedMessage
+
+        let private manualCommit (consumer: Consumer) (KafkaMessage result) =
+            try
+                if not consumer.Runtime.IsAutocommitEnabled then
+                    let (KafkaConsumer consumer) = consumer.KafkaConsumer
+                    consumer.Commit(result)
+                    isLastMessageManuallyCommited <- MessageIsCommited
+
+                Ok ()
+            with e -> Result.Error e    // todo - type error
+
         let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
                 let consumeResult = (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
 
-                if isNull consumeResult then None
+                if isNull consumeResult then
+                    isLastMessageManuallyCommited <- NoConsumedMessage
+                    None
                 else
                     let trace =
                         if consumer.Runtime.UseTracing then
@@ -241,16 +330,27 @@ module Consumer =
                             ]
                         else Inactive
 
-                    Some (Ok {
+                    let message = {
+                        Commit = fun () -> manualCommit consumer (KafkaMessage consumeResult)
                         Message = KafkaMessage consumeResult
                         Trace = trace
-                    })
+                    }
+
+                    let messageResult =
+                        match isLastMessageManuallyCommited with
+                        | MessageIsNotCommitedYet when not consumer.Runtime.IsAutocommitEnabled && consumer.Runtime.FailOnNotCommittedMessage ->
+                            Result.Error ConsumeError.PreviousMessageWasNotCommited
+                        | _ ->
+                            isLastMessageManuallyCommited <- MessageIsNotCommitedYet
+                            Ok message
+
+                    Some messageResult
             with
             | :? KafkaException as e -> Result.Error (ConsumeError.KafkaException e) |> Some
             | e -> Result.Error (ConsumeError.RuntimeException e) |> Some
 
         /// Helper function to combine all map functions
-        let private map f = Option.map (Result.map (TracedMessage.map f))
+        let private map f = Option.map (TracedMessageResult.map (KafkaMessage.value >> f))
 
         let consumeMessageValue: ConsumeMessage<string> = fun consumer ->
             consumer
@@ -379,29 +479,42 @@ module Consumer =
     // Consume events as string values
 
     type ParseEvent<'Event> = TracedMessage<string> -> 'Event
+    type ConsumedResult<'Event> = Result<ConsumedMessage<'Event>, ConsumeError>
 
-    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): Result<'Event, ConsumeError> seq =
+    let private parseConsumedMessage (parseEvent: TracedMessage<'Message> -> 'Event) (tracedMessage: TracedMessageResult<'Message>): ConsumedResult<'Event> =
+        tracedMessage
+        |> Result.map (fun tracedMessage ->
+            {
+                Commit = tracedMessage.Commit
+                Message =
+                    tracedMessage
+                    |> TracedMessage.finish
+                    |> parseEvent
+            }
+        )
+
+    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
-        |> Seq.map (Result.map (TracedMessage.finish >> parse))
+        |> Seq.map (parseConsumedMessage parse)
 
-    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): Result<'Event, ConsumeError> option =
+    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> option =
         configuration
         |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
         |> Seq.tryHead
-        |> Option.map (Result.map (TracedMessage.finish >> parse))
+        |> Option.map (parseConsumedMessage parse)
 
     // Consume events as Messages
 
     type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
 
-    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): Result<'Event, ConsumeError> seq =
+    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): ConsumedResult<'Event> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
-        |> Seq.map (Result.map (TracedMessage.finish >> parse))
+        |> Seq.map (parseConsumedMessage parse)
 
-    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): Result<'Event, ConsumeError> option =
+    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): ConsumedResult<'Event> option =
         configuration
         |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
         |> Seq.tryHead
-        |> Option.map (Result.map (TracedMessage.finish >> parse))
+        |> Option.map (parseConsumedMessage parse)

@@ -43,13 +43,6 @@ let main argv =
                 else CommitMessage.Automatically
         }
 
-    // todo - vyzkouset
-    // - 1. precist stream, dat take 50 a cist znovu
-    // - 2. cist stream a v prubehu skoncit chybou ve spracovani
-
-    // - zapnout manual committing a zopakovat 1.->2.
-    // - pak to zkusit s StoreOffsetem
-
     let mutable i = 0
 
     let execute () =
@@ -69,12 +62,12 @@ let main argv =
                         //failwithf "Commit skipped!"
 
                     else
-                        match m.Commit() with
+                        match m.Commit |> ManualCommit.execute with
                         | Ok () ->
                             logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> is commited" i, m.Message.Offset)
                         | Error e ->
                             logger.LogError (sprintf "[%02i] Error: {error}" i, e)
-                            raise e
+                            failwithf "%A" e
 
             | Error (ConsumeError.PreviousMessageWasNotCommited as e) ->
                 logger.LogError (sprintf "[%02i] Error: {error}" i, e)

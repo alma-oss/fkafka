@@ -26,6 +26,7 @@ module StreamName =
         | (StreamName streamName) -> streamName
         | Instance instance -> instance |> Instance.concat "-"
 
+[<RequireQualifiedAccess>]
 type GroupId =
     | Random
     | Id of string
@@ -33,12 +34,12 @@ type GroupId =
 [<RequireQualifiedAccess>]
 module GroupId =
     let map f = function
-        | Id groupId -> groupId |> f |> Id
-        | Random -> Random
+        | GroupId.Id groupId -> groupId |> f |> GroupId.Id
+        | GroupId.Random -> GroupId.Random
 
     let value = function
-        | Id groupId -> groupId
-        | Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
+        | GroupId.Id groupId -> groupId
+        | GroupId.Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
 
 //
 // Headers

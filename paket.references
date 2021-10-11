@@ -6,4 +6,5 @@ Microsoft.Extensions.Logging
 Lmc.ErrorHandling
 Lmc.Metrics
 Lmc.ServiceIdentification
+Lmc.State
 Lmc.Tracing

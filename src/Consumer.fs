@@ -13,21 +13,6 @@ type ConfigureConnsumer =
     ConfigureConnsumer of (ConsumerConfig -> ConsumerConfig)
 
 [<RequireQualifiedAccess>]
-module ConfigureConnsumer =
-    /// see https://docs.confluent.io/clients-confluent-kafka-dotnet/current/overview.html#synchronous-commits
-    let [<System.Obsolete("todo remove")>] setUpManualCommiting = ConfigureConnsumer (fun config ->
-        config.EnableAutoCommit <- false
-        config
-    )
-
-    /// see https://docs.confluent.io/clients-confluent-kafka-dotnet/current/overview.html#store-offsets
-    let [<System.Obsolete("todo remove")>] setUpManualOffsetStoring = ConfigureConnsumer (fun config ->
-        config.EnableAutoCommit <- true
-        config.EnableAutoOffsetStore <- false
-        config
-    )
-
-[<RequireQualifiedAccess>]
 type FailOnNotCommittedMessage =
     | WithException
     | IgnoringAndContinue
@@ -82,9 +67,20 @@ type ConsumeError =
     | MaxRetriesReached of KafkaException
     | PreviousMessageWasNotCommited
 
+[<RequireQualifiedAccess>]
+type ManualCommitError =
+    | KafkaException of KafkaException
+    | RuntimeException of exn
+
 //
 // Consumer
 //
+
+type ManualCommit = ManualCommit of (unit -> Result<unit, ManualCommitError>)
+
+[<RequireQualifiedAccess>]
+module ManualCommit =
+    let execute (ManualCommit commit) = commit ()
 
 [<RequireQualifiedAccess>]
 module Consumer =
@@ -121,7 +117,7 @@ module Consumer =
 
     [<Struct>]
     type TracedMessage<'Message> = {
-        Commit: unit -> Result<unit, exn>
+        Commit: ManualCommit
         Message: 'Message
         Trace: Trace
     }
@@ -174,7 +170,7 @@ module Consumer =
         let offset ({ Offset = offset }: Message) = offset
 
     type ConsumedMessage<'Message> = {
-        Commit: unit -> Result<unit, exn>
+        Commit: ManualCommit
         Message: 'Message
     }
 
@@ -276,12 +272,14 @@ module Consumer =
 
     [<RequireQualifiedAccess>]
     module private Consume =
+        open Lmc.State.ConcurrentStorage
+
         type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError> option
 
         let private createStartReadingMessage groupId =
             let groupIdToLog = function
-                | Id groupId -> groupId
-                | Random -> ""
+                | GroupId.Id groupId -> groupId
+                | GroupId.Random -> ""
 
             groupId
             |> GroupId.map (sprintf " with %s")
@@ -293,25 +291,29 @@ module Consumer =
             | MessageIsNotCommitedYet
             | MessageIsCommited
 
-        // todo: this should be in state: State<Topic * GroupId, LastMessageManuallyCommitted>
-        let mutable private isLastMessageManuallyCommited: LastMessageManuallyCommitted = NoConsumedMessage
+        type private MaunalCommitKey = MaunalCommitKey of (StreamName * GroupId)
+        let private lastMessageManuallyCommittedState: State<MaunalCommitKey, LastMessageManuallyCommitted> = State.empty()
 
-        let private manualCommit (consumer: Consumer) (KafkaMessage result) =
+        let private manualCommit (consumer: Consumer) manualCommitKey (KafkaMessage result) = ManualCommit (fun () ->
             try
                 if not consumer.Runtime.IsAutocommitEnabled then
                     let (KafkaConsumer consumer) = consumer.KafkaConsumer
                     consumer.Commit(result)
-                    isLastMessageManuallyCommited <- MessageIsCommited
+                    lastMessageManuallyCommittedState |> State.set (Key manualCommitKey) MessageIsCommited
 
                 Ok ()
-            with e -> Result.Error e    // todo - type error
+            with
+            | :? KafkaException as e -> Result.Error (ManualCommitError.KafkaException e)
+            | e -> Result.Error (ManualCommitError.RuntimeException e)
+        )
 
         let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
                 let consumeResult = (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
+                let manualCommitKey = MaunalCommitKey (StreamName consumer.Runtime.Topic, GroupId.Id consumer.Runtime.GroupId)
 
                 if isNull consumeResult then
-                    isLastMessageManuallyCommited <- NoConsumedMessage
+                    lastMessageManuallyCommittedState |> State.tryRemove (Key manualCommitKey)
                     None
                 else
                     let trace =
@@ -330,19 +332,17 @@ module Consumer =
                             ]
                         else Inactive
 
-                    let message = {
-                        Commit = fun () -> manualCommit consumer (KafkaMessage consumeResult)
-                        Message = KafkaMessage consumeResult
-                        Trace = trace
-                    }
-
                     let messageResult =
-                        match isLastMessageManuallyCommited with
-                        | MessageIsNotCommitedYet when not consumer.Runtime.IsAutocommitEnabled && consumer.Runtime.FailOnNotCommittedMessage ->
+                        match lastMessageManuallyCommittedState |> State.tryFind (Key manualCommitKey) with
+                        | Some MessageIsNotCommitedYet when not consumer.Runtime.IsAutocommitEnabled && consumer.Runtime.FailOnNotCommittedMessage ->
                             Result.Error ConsumeError.PreviousMessageWasNotCommited
                         | _ ->
-                            isLastMessageManuallyCommited <- MessageIsNotCommitedYet
-                            Ok message
+                            lastMessageManuallyCommittedState |> State.set (Key manualCommitKey) MessageIsNotCommitedYet
+                            Ok {
+                                Commit = manualCommit consumer manualCommitKey (KafkaMessage consumeResult)
+                                Message = KafkaMessage consumeResult
+                                Trace = trace
+                            }
 
                     Some messageResult
             with

@@ -2,6 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Consume with error handling
+- Fix to work without a tracing
+- [**BC**] Remove `Logger` type and use `ILogger` from `Microsoft.Extensions.Logging`
+- [**BC**] Add configuration option to set `CommitMessage` *mode*
+- [**BC**] Require qualified access for `GroupId`
 
 ## 16.2.0 - 2021-09-14
 - Update dependencies

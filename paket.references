@@ -2,7 +2,9 @@ FSharp.Core
 FSharp.Data
 Confluent.Kafka
 FSharp.Control.AsyncSeq
+Microsoft.Extensions.Logging
 Lmc.ErrorHandling
 Lmc.Metrics
 Lmc.ServiceIdentification
+Lmc.State
 Lmc.Tracing

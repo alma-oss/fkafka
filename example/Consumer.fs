@@ -2,44 +2,88 @@
 
 open System
 open Lmc.Kafka
-open MF.ConsoleStyle
+open Lmc.Logging
+open Microsoft.Extensions.Logging
 
 [<EntryPoint>]
 let main argv =
-    Console.title "Consume messages"
-    let brokerList = "kfall-1.dev1.services.lmc:9092"
-    let topic = "consents-intentStream-development-v1"
-    //let groupId = "consumer-group-id-v8"
+    printfn "Example\n=======\n"
 
-    Console.options "Configuration" [
+    let brokerList = "kfall-1.dev1.services.lmc:9092"
+    let topic = "consents-interactionCollectorStream-local-v1"
+    let groupId = "consumer-group-id-v16"
+
+    /// default: true
+    let enableAutocommit = false
+
+    (* printfn "Configuration: %A" [
         //("groupId", groupId)
         ("brokerList", brokerList)
         ("topic", topic)
+    ] *)
+
+    use loggerFactory = LoggerFactory.create [
+        UseLevel LogLevel.Trace
+        LogToConsole
     ]
 
-    Console.message "Start consuming ..."
+    let logger = loggerFactory.CreateLogger("Example")
+
+    logger.LogInformation "Start consuming ..."
     let connection = {
         BrokerList = BrokerList brokerList
         Topic = StreamName topic
     }
     let configuration =
-        { ConsumerConfiguration.createWithConnection connection GroupId.Random with
-            Logger = Some {
-                Log = Console.messagef "[Kafka] %s"
-            }
+        { ConsumerConfiguration.createWithConnection connection (GroupId.Id groupId) with
+            Logger = Some <| loggerFactory.CreateLogger("Kafka")
             Checker = Some Checker.defaultChecker
+            CommitMessage =
+                if not enableAutocommit then CommitMessage.Manually FailOnNotCommittedMessage.WithException
+                else CommitMessage.Automatically
         }
 
-    Consumer.consumeLastMessage configuration
-    |> printfn "%A"
+    let mutable i = 0
 
-    printfn "Expected: 0e4405ca-9866-43a9-a005-0e44c11b904a"
+    let execute () =
+        Consumer.consumeMessages configuration id
+        |> Seq.map (fun m -> i <- i + 1; m)
+        |> Seq.take 50
+        |> Seq.iter (function
+            | Ok { Message = m } ->
+                logger.LogTrace (sprintf "[%02i] Message<O:{offset}>: string[{length}]" i, m.Message.Offset, m.Message.Value.Length)
 
-    //DecodedMessageReader { ReadMessage = (printfn " - Replay Event: %A") }
-    //|> Consumer.consumeStreamToOffset configuration (int64 14)
+                System.Threading.Thread.Sleep 1000
 
-    //DecodedMessageReader { ReadMessage = (printfn " - Event: %A") }
-    //|> Consumer.consumeStreamWithGroupId Console.message configuration groupId
+                if not enableAutocommit then
+                    //if System.Random().Next(0, 6) >= 4 then
+                    if m.Message.Offset > Some (int64 40) then
+                        logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> SKIP commit" i, m.Message.Offset)
+                        //failwithf "Commit skipped!"
 
-    Console.success "Done"
+                    else
+                        match m.Commit |> ManualCommit.execute with
+                        | Ok () ->
+                            logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> is commited" i, m.Message.Offset)
+                        | Error e ->
+                            logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+                            failwithf "%A" e
+
+            | Error (ConsumeError.PreviousMessageWasNotCommited as e) ->
+                logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+                failwithf "Commit skipped!"
+            | Error e -> logger.LogError (sprintf "[%02i] Error: {error}" i, e)
+        )
+
+    // try
+    execute()
+    //execute()
+    (* with _ ->
+        async {
+            logger.LogInformation "waiting ..."
+            do! Async.Sleep 2000
+        }
+        |> Async.RunSynchronously *)
+
+    logger.LogInformation "====\nDone\n===="
     0 // return an integer exit code

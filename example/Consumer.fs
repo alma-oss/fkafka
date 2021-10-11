@@ -56,10 +56,9 @@ let main argv =
                 System.Threading.Thread.Sleep 1000
 
                 if not enableAutocommit then
-                    //if System.Random().Next(0, 6) >= 4 then
-                    if m.Message.Offset > Some (int64 40) then
+                    if System.Random().Next(0, 6) >= 4 then
+                        // simulation of error, which leads to skip the commit
                         logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> SKIP commit" i, m.Message.Offset)
-                        //failwithf "Commit skipped!"
 
                     else
                         match m.Commit |> ManualCommit.execute with
@@ -72,18 +71,11 @@ let main argv =
             | Error (ConsumeError.PreviousMessageWasNotCommited as e) ->
                 logger.LogError (sprintf "[%02i] Error: {error}" i, e)
                 failwithf "Commit skipped!"
+
             | Error e -> logger.LogError (sprintf "[%02i] Error: {error}" i, e)
         )
 
-    // try
     execute()
-    //execute()
-    (* with _ ->
-        async {
-            logger.LogInformation "waiting ..."
-            do! Async.Sleep 2000
-        }
-        |> Async.RunSynchronously *)
 
     logger.LogInformation "====\nDone\n===="
     0 // return an integer exit code

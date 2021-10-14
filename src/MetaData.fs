@@ -1,0 +1,118 @@
+namespace Lmc.Kafka
+
+module MetaData =
+    open System
+    open Lmc.ServiceIdentification
+
+    type NotParsed = NotParsed
+
+    type CreatedAt = CreatedAt of DateTime
+
+    [<RequireQualifiedAccess>]
+    module CreatedAt =
+        let value (CreatedAt date) = date
+        let now () = CreatedAt (DateTime.Now)
+
+    type GitCommit = GitCommit of string
+
+    [<RequireQualifiedAccess>]
+    module GitCommit =
+        let value (GitCommit value) = value
+
+    type DockerImageVersion = DockerImageVersion of string
+
+    [<RequireQualifiedAccess>]
+    module DockerImageVersion =
+        let value (DockerImageVersion value) = value
+
+    type ProcessedBy = {
+        Instance: Instance
+        Commit: GitCommit
+        ImageVersion: DockerImageVersion
+    }
+
+    type MetaData =
+        | OnlyCreatedAt of CreatedAt
+        | CreatedAndProcessed of CreatedAt * ProcessedBy
+
+    [<RequireQualifiedAccess>]
+    type MetaDataParseError =
+        | InvalidSchema of data: string * message: string
+
+    [<RequireQualifiedAccess>]
+    module MetaDataParseError =
+        let format = function
+            | MetaDataParseError.InvalidSchema (data, message) -> sprintf "MetaData are invalid - %s.\n%A" message data
+
+    module private Parser =
+        open FSharp.Data
+        open Lmc.Kafka
+
+        type private MetaDataSchema = JsonProvider<"src/schema/metaData.json", SampleIsList = true>
+
+        let parse metaDataJsonValue =
+            try
+                let parsedMetaData = metaDataJsonValue |> RawData.toJson |> MetaDataSchema.Parse
+                let createdAt = CreatedAt parsedMetaData.CreatedAt.DateTime
+
+                match parsedMetaData.ProcessedBy with
+                | Some processedBy ->
+                    match processedBy.Instance |> Instance.parse "-" with
+                    | Some instance ->
+                        let processedBy = {
+                            Instance = instance
+                            Commit = GitCommit processedBy.Commit
+                            ImageVersion = DockerImageVersion processedBy.ImageVersion
+                        }
+
+                        CreatedAndProcessed (createdAt, processedBy)
+                    | _ -> OnlyCreatedAt createdAt
+                | _ -> OnlyCreatedAt createdAt
+                |> Ok
+            with
+            | error -> Error (MetaDataParseError.InvalidSchema (metaDataJsonValue.ToString(), error.Message))
+
+    [<RequireQualifiedAccess>]
+    module MetaData =
+        let createdAt = function
+            | OnlyCreatedAt createdAt -> createdAt
+            | CreatedAndProcessed (createdAt, _) -> createdAt
+
+        let parse = Parser.parse
+
+        let forProcessedEvent processedBy =
+            CreatedAndProcessed (CreatedAt.now(), processedBy)
+
+    [<RequireQualifiedAccess>]
+    module MetaDataDto =
+        open Lmc.Serializer
+
+        type OnlyCreatedAt = {
+            CreatedAt: string
+        }
+
+        type ProcessedByDto = {
+            Instance: string
+            Commit: string
+            ImageVersion: string
+        }
+
+        type CreatedAtAndProcessedBy = {
+            CreatedAt: string
+            ProcessedBy: ProcessedByDto
+        }
+
+        let fromCreatedAt (CreatedAt createdAt) =
+            {
+                CreatedAt = createdAt |> Serialize.dateTime
+            }
+
+        let fromProcessed ((CreatedAt createdAt), processedBy: ProcessedBy): CreatedAtAndProcessedBy =
+            {
+                CreatedAt = createdAt |> Serialize.dateTime
+                ProcessedBy = {
+                    Instance = processedBy.Instance |> Instance.concat "-"
+                    Commit = processedBy.Commit |> GitCommit.value
+                    ImageVersion = processedBy.ImageVersion |> DockerImageVersion.value
+                }
+            }

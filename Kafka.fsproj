@@ -21,6 +21,7 @@
     <Compile Include="src/Consumer.fs" />
     <Compile Include="src/Events.fs" />
     <Compile Include="src/Producer.fs" />
+    <Compile Include="src/MetaData.fs" />
   </ItemGroup>
 
   <Import Project=".paket\Paket.Restore.targets" />

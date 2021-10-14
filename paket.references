@@ -5,6 +5,7 @@ FSharp.Control.AsyncSeq
 Microsoft.Extensions.Logging
 Lmc.ErrorHandling
 Lmc.Metrics
+Lmc.Serializer
 Lmc.ServiceIdentification
 Lmc.State
 Lmc.Tracing

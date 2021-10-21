@@ -297,9 +297,10 @@ module Consumer =
         let private manualCommit (consumer: Consumer) manualCommitKey (KafkaMessage result) = ManualCommit (fun () ->
             try
                 if not consumer.Runtime.IsAutocommitEnabled then
-                    let (KafkaConsumer consumer) = consumer.KafkaConsumer
-                    consumer.Commit(result)
+                    let (KafkaConsumer kafkaConsumer) = consumer.KafkaConsumer
+                    kafkaConsumer.Commit(result)
                     lastMessageManuallyCommittedState |> State.set (Key manualCommitKey) MessageIsCommited
+                    consumer.Logger |> Option.iter (fun logger -> logger.LogDebug("Event in {manualCommitKey} is commited!", manualCommitKey))
 
                 Ok ()
             with
@@ -316,6 +317,9 @@ module Consumer =
                     lastMessageManuallyCommittedState |> State.tryRemove (Key manualCommitKey)
                     None
                 else
+                    if not consumer.Runtime.IsAutocommitEnabled then
+                        consumer.Logger |> Option.iter (fun logger -> logger.LogDebug("Event in {manualCommitKey} is consumed and waiting for commit ...", manualCommitKey))
+
                     let trace =
                         if consumer.Runtime.UseTracing then
                             "Consume event"

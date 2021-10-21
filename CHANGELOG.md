@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Log debug of commit message key, if manual committing is set up
 
 ## 17.1.0 - 2021-10-14
 - Add MetaData module (*moved from consent-events*)

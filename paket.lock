@@ -552,7 +552,7 @@ NUGET
       Microsoft.Extensions.Logging (>= 5.0)
 GIT
   remote: ssh://git@bitbucket.lmc.cz:7999/archi/nuget-server.git
-     (6dd6b91bcc36f8231847e06eddafabfeb2578b7a)
+     (a3833f75188baafb51d66194b9d9355cb3222417)
       path: /nuget/
 GROUP Build
 STORAGE: NONE

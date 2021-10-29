@@ -31,9 +31,12 @@ module MetaData =
         ImageVersion: DockerImageVersion
     }
 
+    type MetaDataOnlyCreatedAt = MetaDataOnlyCreatedAt of CreatedAt
+    type MetaDataCreatedAndProcessed = MetaDataCreatedAndProcessed of CreatedAt * ProcessedBy
+
     type MetaData =
-        | OnlyCreatedAt of CreatedAt
-        | CreatedAndProcessed of CreatedAt * ProcessedBy
+        | OnlyCreatedAt of MetaDataOnlyCreatedAt
+        | CreatedAndProcessed of MetaDataCreatedAndProcessed
 
     [<RequireQualifiedAccess>]
     type MetaDataParseError =
@@ -65,9 +68,9 @@ module MetaData =
                             ImageVersion = DockerImageVersion processedBy.ImageVersion
                         }
 
-                        CreatedAndProcessed (createdAt, processedBy)
-                    | _ -> OnlyCreatedAt createdAt
-                | _ -> OnlyCreatedAt createdAt
+                        CreatedAndProcessed (MetaDataCreatedAndProcessed (createdAt, processedBy))
+                    | _ -> OnlyCreatedAt (MetaDataOnlyCreatedAt createdAt)
+                | _ -> OnlyCreatedAt (MetaDataOnlyCreatedAt createdAt)
                 |> Ok
             with
             | error -> Error (MetaDataParseError.InvalidSchema (metaDataJsonValue.ToString(), error.Message))
@@ -75,13 +78,13 @@ module MetaData =
     [<RequireQualifiedAccess>]
     module MetaData =
         let createdAt = function
-            | OnlyCreatedAt createdAt -> createdAt
-            | CreatedAndProcessed (createdAt, _) -> createdAt
+            | OnlyCreatedAt (MetaDataOnlyCreatedAt createdAt) -> createdAt
+            | CreatedAndProcessed (MetaDataCreatedAndProcessed (createdAt, _)) -> createdAt
 
         let parse = Parser.parse
 
         let forProcessedEvent processedBy =
-            CreatedAndProcessed (CreatedAt.now(), processedBy)
+            CreatedAndProcessed (MetaDataCreatedAndProcessed (CreatedAt.now(), processedBy))
 
     [<RequireQualifiedAccess>]
     module MetaDataDto =
@@ -107,6 +110,9 @@ module MetaData =
                 CreatedAt = createdAt |> Serialize.dateTime
             }
 
+        let fromMetaDataCreatedAt (MetaDataOnlyCreatedAt createdAt) =
+            createdAt |> fromCreatedAt
+
         let fromProcessed ((CreatedAt createdAt), processedBy: ProcessedBy): CreatedAtAndProcessedBy =
             {
                 CreatedAt = createdAt |> Serialize.dateTime
@@ -116,3 +122,6 @@ module MetaData =
                     ImageVersion = processedBy.ImageVersion |> DockerImageVersion.value
                 }
             }
+
+        let fromMetaProcessed (MetaDataCreatedAndProcessed (createdAt, processed)) =
+            (createdAt, processed) |> fromProcessed

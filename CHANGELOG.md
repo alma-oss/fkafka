@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 18.0.0 - 2021-10-29
 - [**BC**] Add MetaData types
     - `MetaDataOnlyCreatedAt`
     - `MetaDataCreatedAndProcessed`

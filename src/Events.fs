@@ -301,13 +301,14 @@ module CommonEvent =
     let eventType ({ Event = event }: CommonEvent) = event
 
     let box (event: CommonEvent) =
-        Box.createFromValues
-            event.Domain
-            event.Context
-            event.Purpose
-            event.Version
-            event.Zone
+        Create.Box(
+            event.Domain,
+            event.Context,
+            event.Purpose,
+            event.Version,
+            event.Zone,
             event.Bucket
+        )
 
     let resource ({ Resource = resource }: CommonEvent) = resource
 

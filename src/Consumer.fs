@@ -8,10 +8,6 @@ open Microsoft.Extensions.Logging
 open Lmc.Metrics.ServiceStatus
 open Lmc.Tracing
 
-[<System.Obsolete("Define a configuration in Consumer configuration directly and do not use this hidden configure.")>]
-type ConfigureConnsumer =
-    ConfigureConnsumer of (ConsumerConfig -> ConsumerConfig)
-
 [<RequireQualifiedAccess>]
 type FailOnNotCommittedMessage =
     | WithException
@@ -25,7 +21,6 @@ type CommitMessage =
 type ConsumerConfiguration = {
     Connection: ConnectionConfiguration
     GroupId: GroupId
-    Configure: ConfigureConnsumer option
     Logger: ILogger option
     Checker: Checker option
     IntervalChecker: IntervalChecker option
@@ -48,7 +43,6 @@ module ConsumerConfiguration =
             Checker = None
             IntervalChecker = None
             ServiceStatus = None
-            Configure = None
             CommitMessage = CommitMessage.Automatically
         }
 
@@ -176,7 +170,7 @@ module Consumer =
 
     [<RequireQualifiedAccess>]
     module private Consumer =
-        let private createDefaultConfig (BrokerList brokerList) groupId commitMessage configure =
+        let private createDefaultConfig (BrokerList brokerList) groupId commitMessage =
             let config =
                 ConsumerConfig(
                     GroupId = (groupId |> GroupId.value),
@@ -188,9 +182,7 @@ module Consumer =
             | CommitMessage.Automatically -> config.EnableAutoCommit <- true
             | CommitMessage.Manually _ -> config.EnableAutoCommit <- false
 
-            match configure with
-            | Some (ConfigureConnsumer configure) -> configure config
-            | _ -> config
+            config
 
         let private createConsumer configuration (config: ConsumerConfig): Consumer =
             let topicValue = configuration.Connection.Topic |> StreamName.value
@@ -252,11 +244,11 @@ module Consumer =
             }
 
         let private create (configuration: ConsumerConfiguration) =
-            createDefaultConfig configuration.Connection.BrokerList configuration.GroupId configuration.CommitMessage configuration.Configure
+            createDefaultConfig configuration.Connection.BrokerList configuration.GroupId configuration.CommitMessage
             |> createConsumer configuration
 
         let private createForLastMessage (configuration: ConsumerConfiguration) =
-            createDefaultConfig configuration.Connection.BrokerList GroupId.Random configuration.CommitMessage configuration.Configure
+            createDefaultConfig configuration.Connection.BrokerList GroupId.Random configuration.CommitMessage
             |> createConsumerForLastMessage configuration
 
         let connect (configuration: ConsumerConfiguration) =

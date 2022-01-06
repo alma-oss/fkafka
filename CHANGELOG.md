@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 19.0.0 - 2022-01-06
 - [**BC**] Use net6.0
 - [**BC**] Remove deprecated `configure` in Consumer configuration
 

@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 20.0.0 - 2022-01-24
 - [**BC**] Use string key in produced message
 - Add `MessageKey` type and module
 - [**BC**] Add `MessageToProduce` type and module and use it instead of a `string` message in all produce functions

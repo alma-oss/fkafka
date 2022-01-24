@@ -9,6 +9,12 @@
         - `produceWithHeaders`
         - `produceSingleWithHeaders`
 - [**BC**] Remove partition from a producer runtime information and use a partition from a delivery report
+- [**BC**] Remove function for consuming last message
+    - `consumeLast`
+    - `consumeLastMessage`
+- [**BC**] Remove partition from consumer runtime information and use a partition from consumed message
+- [**BC**] Add `Partition` field to consumed `Message`
+- Trace offset in both producing and consuming message
 
 ## 19.0.0 - 2022-01-06
 - [**BC**] Use net6.0

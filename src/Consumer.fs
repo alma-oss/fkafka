@@ -32,9 +32,6 @@ type ConsumerConfiguration = {
 
 [<RequireQualifiedAccess>]
 module ConsumerConfiguration =
-    /// Partition used for consuming - since we don't use them yet, it is always a default one - 0
-    let [<Literal>] internal DefaultPartition = 0
-
     let createWithConnection connection groupId =
         {
             Connection = connection
@@ -80,8 +77,11 @@ module ManualCommit =
 module Consumer =
     open System
 
-    type internal KafkaConsumer = KafkaConsumer of IConsumer<Ignore, string>
-    type KafkaMessage = internal KafkaMessage of ConsumeResult<Ignore, string>
+    type private KafkaMessageKey = Ignore
+    type private KafkaMessageValue = string
+
+    type internal KafkaConsumer = KafkaConsumer of IConsumer<KafkaMessageKey, KafkaMessageValue>
+    type KafkaMessage = internal KafkaMessage of ConsumeResult<KafkaMessageKey, KafkaMessageValue>
 
     [<RequireQualifiedAccess>]
     module private KafkaMessage =
@@ -99,8 +99,6 @@ module Consumer =
         GroupId: string
         /// Acutal topic used for consuming
         Topic: string
-        /// Acutal partition used for consuming
-        Partition: int
 
         /// If autocommit is not enabled, consumer client must commit the processed result manually
         IsAutocommitEnabled: bool
@@ -154,6 +152,7 @@ module Consumer =
 
     [<Struct>]
     type Message = {
+        Partition: int option
         Offset: int64 option
         Value: string
     }
@@ -162,6 +161,7 @@ module Consumer =
     module Message =
         let value ({ Value = value }: Message) = value
         let offset ({ Offset = offset }: Message) = offset
+        let partition ({ Partition = partition }: Message) = partition
 
     type ConsumedMessage<'Message> = {
         Commit: ManualCommit
@@ -196,41 +196,6 @@ module Consumer =
                     BootstrapServers = config.BootstrapServers
                     GroupId = config.GroupId
                     Topic = topicValue
-                    Partition = ConsumerConfiguration.DefaultPartition
-
-                    IsAutocommitEnabled = config.EnableAutoCommit.GetValueOrDefault true
-                    FailOnNotCommittedMessage =
-                        match configuration.CommitMessage with
-                        | CommitMessage.Manually FailOnNotCommittedMessage.WithException -> true
-                        | _ -> false
-
-                    UseTracing = Tracer.Check.isTracerAvailable()
-                }
-                Logger = configuration.Logger
-            }
-
-        let private createConsumerForLastMessage configuration (config: ConsumerConfig): Consumer =
-            let topicValue = configuration.Connection.Topic |> StreamName.value
-
-            let consumer = ConsumerBuilder(config).Build()
-            let topicPartition = TopicPartition(topicValue, Partition(ConsumerConfiguration.DefaultPartition))
-
-            let lastMessageOffset =
-                consumer.QueryWatermarkOffsets(topicPartition, TimeSpan.FromSeconds 5.0)
-                |> fun offset ->
-                    if offset.High.IsSpecial || offset.High.Value = 0L
-                    then failwithf "There is no last message."
-                    else offset.High.Value - 1L
-
-            consumer.Assign(TopicPartitionOffset(topicPartition, Offset(lastMessageOffset)))
-
-            {
-                KafkaConsumer = KafkaConsumer consumer
-                Runtime = {
-                    BootstrapServers = config.BootstrapServers
-                    GroupId = config.GroupId
-                    Topic = topicValue
-                    Partition = ConsumerConfiguration.DefaultPartition
 
                     IsAutocommitEnabled = config.EnableAutoCommit.GetValueOrDefault true
                     FailOnNotCommittedMessage =
@@ -247,17 +212,9 @@ module Consumer =
             createDefaultConfig configuration.Connection.BrokerList configuration.GroupId configuration.CommitMessage
             |> createConsumer configuration
 
-        let private createForLastMessage (configuration: ConsumerConfiguration) =
-            createDefaultConfig configuration.Connection.BrokerList GroupId.Random configuration.CommitMessage
-            |> createConsumerForLastMessage configuration
-
         let connect (configuration: ConsumerConfiguration) =
             configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting"))
             create configuration
-
-        let connectLastMessage (configuration: ConsumerConfiguration) =
-            configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting for last message ..."))
-            createForLastMessage configuration
 
         let close (consumer: Consumer) =
             consumer.Close()
@@ -309,9 +266,6 @@ module Consumer =
                     lastMessageManuallyCommittedState |> State.tryRemove (Key manualCommitKey)
                     None
                 else
-                    if not consumer.Runtime.IsAutocommitEnabled then
-                        consumer.Logger |> Option.iter (fun logger -> logger.LogDebug("Event in {manualCommitKey} is consumed and waiting for commit ...", manualCommitKey))
-
                     let trace =
                         if consumer.Runtime.UseTracing then
                             "Consume event"
@@ -322,11 +276,15 @@ module Consumer =
                                 "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
                                 "kafka.topic", consumer.Runtime.Topic
                                 "message_bus.destination", consumer.Runtime.Topic
-                                "kafka.partition", string consumer.Runtime.Partition
+                                "kafka.partition", string consumeResult.Partition.Value
+                                "kafka.offset", string consumeResult.Offset.Value
                                 "kafka.group_id", consumer.Runtime.GroupId
                                 "span.kind", "consumer"
                             ]
                         else Inactive
+
+                    if not consumer.Runtime.IsAutocommitEnabled then
+                        consumer.Logger |> Option.iter (fun logger -> logger.LogDebug("Event in {manualCommitKey} is consumed and waiting for commit ...", manualCommitKey))
 
                     let messageResult =
                         match lastMessageManuallyCommittedState |> State.tryFind (Key manualCommitKey) with
@@ -357,6 +315,7 @@ module Consumer =
             consumer
             |> consume
             |> map (fun message -> {
+                Partition = if message.Partition.IsSpecial then None else Some message.Partition.Value
                 Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
                 Value = message.Message.Value
             })
@@ -494,12 +453,6 @@ module Consumer =
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.map (parseConsumedMessage parse)
 
-    let consumeLast (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> option =
-        configuration
-        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessageValue
-        |> Seq.tryHead
-        |> Option.map (parseConsumedMessage parse)
-
     // Consume events as Messages
 
     type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
@@ -508,9 +461,3 @@ module Consumer =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
         |> Seq.map (parseConsumedMessage parse)
-
-    let consumeLastMessage (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): ConsumedResult<'Event> option =
-        configuration
-        |> Consume.seq Consumer.connectLastMessage Consume.consumeMessage
-        |> Seq.tryHead
-        |> Option.map (parseConsumedMessage parse)

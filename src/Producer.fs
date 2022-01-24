@@ -14,9 +14,6 @@ type ProducerConfiguration = {
 
 [<RequireQualifiedAccess>]
 module ProducerConfiguration =
-    /// Partition used for producing - since we don't use them yet, it is always a default one - 0
-    let [<Literal>] internal DefaultPartition = 0
-
     let createWithConnection connection =
         {
             Connection = connection
@@ -32,17 +29,76 @@ module ProducerConfiguration =
         }
 
 //
-// Producer
+// Message
 //
 
 open Confluent.Kafka
 
-type private KafkaProducer = KafkaProducer of IProducer<Null, string>
-type private KafkaMessage = Message<Null, string>
+type private KafkaMessageKey = string
+type private KafkaMessageValue = string
+
+type private KafkaMessage = Message<KafkaMessageKey, KafkaMessageValue>
+
+/// Key used for a message in kafka. Format is a string with values delimited by `,`. (this format is used by KSQL, etc.)
+[<RequireQualifiedAccess>]
+type MessageKey =
+    | Simple of KafkaMessageKey
+    | Delimited of KafkaMessageKey list
+
+[<RequireQualifiedAccess>]
+module MessageKey =
+    let private normalize (key: KafkaMessageKey) =
+        key.Replace(" ", "")
+
+    let value = function
+        | MessageKey.Simple key -> normalize key
+        | MessageKey.Delimited values -> values |> String.concat "," |> normalize
+
+[<RequireQualifiedAccess>]
+type MessageToProduce = {
+    Key: MessageKey
+    Headers: Lmc.Kafka.Header list
+    Value: KafkaMessageValue
+}
+
+type internal CreateKafkaMessage = MessageToProduce -> KafkaMessage
+
+[<RequireQualifiedAccess>]
+module MessageToProduce =
+    let private asKafkaHeaders headers =
+        let messageHeaders = Headers()
+        headers |> List.iter (Header.toKafkaHeader >> messageHeaders.Add)
+        messageHeaders
+
+    let internal createKafkaMessage: CreateKafkaMessage = function
+        | { Key = key; Value = value; Headers = [] } ->
+            KafkaMessage(Key = (key |> MessageKey.value), Value = value )
+
+        | { Key = key; Value = value; Headers = headers } ->
+            KafkaMessage(Key = (key |> MessageKey.value), Value = value, Headers = (headers |> asKafkaHeaders) )
+
+    let createWithHeaders headers (key, value): MessageToProduce = { Key = key; Value = value; Headers = headers }
+    let create = createWithHeaders []
+
+    let key { Key = key } = key
+    let value { Value = value } = value
+
+//
+// Producer
+//
+
+type private KafkaProducer = KafkaProducer of IProducer<KafkaMessageKey, KafkaMessageValue>
 
 [<RequireQualifiedAccess>]
 module private KafkaProducer =
     let value (KafkaProducer kafkaProducer) = kafkaProducer
+
+    let create (BrokerList brokerList): KafkaProducer =
+        let config =
+            ProducerConfig(
+                BootstrapServers = brokerList
+            )
+        ProducerBuilder(config).Build() |> KafkaProducer
 
 [<Struct>]
 type private ProduceRuntime = {
@@ -50,8 +106,6 @@ type private ProduceRuntime = {
     BootstrapServers: string
     /// Acutal topic used for producing
     Topic: string
-    /// Acutal partition used for producing
-    Partition: int
 
     UseTracing: bool
 }
@@ -84,22 +138,14 @@ type Producer =
 module Producer =
     type NotConnected = private NotConnectedProducer of (unit -> Producer)
 
-    let private createKafkaProducer (BrokerList brokerList): KafkaProducer =
-        let config =
-            ProducerConfig(
-                BootstrapServers = brokerList
-            )
-        ProducerBuilder(config).Build() |> KafkaProducer
-
     let private createProducer (configuration: ProducerConfiguration): Producer =
         configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting producer ..."))
         {
-            KafkaProducer = configuration.Connection.BrokerList |> createKafkaProducer
+            KafkaProducer = configuration.Connection.BrokerList |> KafkaProducer.create
             Topic = configuration.Connection.Topic
             Runtime = {
                 BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                 Topic = configuration.Connection.Topic |> StreamName.value
-                Partition = ProducerConfiguration.DefaultPartition
                 UseTracing = Tracer.Check.isTracerAvailable()
             }
             Logger = configuration.Logger
@@ -113,7 +159,7 @@ module Producer =
         let mutable waitForResource = checker.WaitForResourceDefault
 
         configuration.Logger |> Option.iter (fun logger -> logger.LogDebug("Connecting producer ..."))
-        let (KafkaProducer producer) = createKafkaProducer configuration.Connection.BrokerList
+        let (KafkaProducer producer) = configuration.Connection.BrokerList |> KafkaProducer.create
 
         seq {
             while attempt <= maxRetries do
@@ -125,7 +171,6 @@ module Producer =
                         Runtime = {
                             BootstrapServers = configuration.Connection.BrokerList |> BrokerList.value
                             Topic = configuration.Connection.Topic |> StreamName.value
-                            Partition = ProducerConfiguration.DefaultPartition
                             UseTracing = Tracer.Check.isTracerAvailable()
                         }
                         Logger = configuration.Logger
@@ -164,27 +209,26 @@ module Producer =
     // Produce messages
     //
 
-    let private createKafkaMessage message =
-        KafkaMessage(
-            Value = message
-        )
-
-    let private createMessageWithHeaders headers message =
-        let messageHeaders = Headers()
-        headers
-        |> List.iter (Header.toKafkaHeader >> messageHeaders.Add)
-
-        KafkaMessage(
-            Value = message,
-            Headers = messageHeaders
-        )
-
     [<RequireQualifiedAccess>]
     module private Produce =
-        let messageWith (producer: Producer) (message: KafkaMessage) =
-            let topicValue = producer.Runtime.Topic
+        type private ProduceError =
+            | BrokerError of ErrorCode * string
+            | LocalError of ErrorCode * string
+            | FatalError of ErrorCode * string
+            | RuntimeError of ErrorCode * string
 
-            use __ =
+        module private ProduceError =
+            let format = function
+                | BrokerError (code, reason) -> $"Kafka broker error({code}): {reason}"
+                | LocalError (code, reason) -> $"Kafka local error({code}): {reason}"
+                | FatalError (code, reason) -> $"Kafka fatal error({code}): {reason}"
+                | RuntimeError (code, reason) -> $"Kafka runtime error({code}): {reason}"
+
+        let messageWith (producer: Producer) message =
+            let topicValue = producer.Runtime.Topic
+            let message = message |> MessageToProduce.createKafkaMessage
+
+            let produceTrace =
                 if producer.Runtime.UseTracing then
                     "Produce event"
                     |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers >> Trace.ofContextOption)
@@ -194,41 +238,44 @@ module Producer =
                         "component:", (sprintf "fkafka (%s)" AssemblyVersionInformation.AssemblyVersion)
                         "kafka.topic", topicValue
                         "message_bus.destination", topicValue
-                        "kafka.partition", string producer.Runtime.Partition
                         "span.kind", "producer"
                     ]
                 else Inactive
 
-            (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, message)
+            (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, message, fun delivery ->
+                let traceError error =
+                    produceTrace
+                    |> Trace.addError (error |> TracedError.ofError ProduceError.format)
+                    |> ignore
+
+                if delivery.Error.IsBrokerError then traceError (BrokerError (delivery.Error.Code, delivery.Error.Reason))
+                elif delivery.Error.IsLocalError then traceError (LocalError (delivery.Error.Code, delivery.Error.Reason))
+                elif delivery.Error.IsFatal then traceError (FatalError (delivery.Error.Code, delivery.Error.Reason))
+                elif delivery.Error.IsError then traceError (RuntimeError (delivery.Error.Code, delivery.Error.Reason))
+
+                produceTrace
+                |> Trace.addTags [
+                    "kafka.partition", string delivery.Partition.Value
+                    "kafka.offset", string delivery.Offset.Value
+                ]
+                |> Trace.finish
+            )
 
     // Produce message only
 
     let produce producer message =
         message
-        |> createKafkaMessage
         |> Produce.messageWith producer
 
     let produceSingle producer message =
         message |> produce producer
         producer |> flush
 
-    // Produce message with headers
-
-    let produceWithHeaders producer headers message =
-        message
-        |> createMessageWithHeaders headers
-        |> Produce.messageWith producer
-
-    let produceSingleWithHeaders producer headers message =
-        message |> produceWithHeaders producer headers
-        producer |> flush
-
     // Produce message with trace
 
-    let produceWithTrace producer trace message =
-        message
-        |> createMessageWithHeaders (Trace.inject trace [])
-        |> Produce.messageWith producer
+    let produceWithTrace producer trace (message: MessageToProduce) =
+        { message with Headers = message.Headers |> Trace.inject trace}
+        |> produce producer
 
     let produceSingleWithTrace producer trace message =
         message |> produceWithTrace producer trace

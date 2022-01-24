@@ -10,11 +10,16 @@ let main argv =
     printfn "Example\n=======\n"
 
     let brokerList = "kfall-1.dev1.services.lmc:9092"
-    let topic = "consents-interactionCollectorStream-local-v1"
-    let groupId = "consumer-group-id-v16"
+    let topic = "development-local-experimental-v1"
+    let topicWithPartitions = "development-local-experimentalWithPartition-v1"
+
+    let groupId = "consumer-group-id-v006"
 
     /// default: true
     let enableAutocommit = false
+
+    /// If the value is true and autocommit is disabled, it will end with errors (to simulate the problem)
+    let allowSkip = true
 
     (* printfn "Configuration: %A" [
         //("groupId", groupId)
@@ -27,12 +32,12 @@ let main argv =
         LogToConsole
     ]
 
-    let logger = loggerFactory.CreateLogger("Example")
+    let logger = loggerFactory.CreateLogger("Example - consumer")
 
     logger.LogInformation "Start consuming ..."
     let connection = {
         BrokerList = BrokerList brokerList
-        Topic = StreamName topic
+        Topic = StreamName topicWithPartitions
     }
     let configuration =
         { ConsumerConfiguration.createWithConnection connection (GroupId.Id groupId) with
@@ -48,15 +53,22 @@ let main argv =
     let execute () =
         Consumer.consumeMessages configuration id
         |> Seq.map (fun m -> i <- i + 1; m)
-        |> Seq.take 50
+        // |> Seq.take 50
         |> Seq.iter (function
             | Ok { Message = m } ->
-                logger.LogTrace (sprintf "[%02i] Message<O:{offset}>: string[{length}]" i, m.Message.Offset, m.Message.Value.Length)
+                logger.LogTrace (
+                    sprintf "[%02i] Message[P:{partition}|O:{offset}]<K:{key}>: {value}[{length}]" i,
+                    m.Message.Partition,
+                    m.Message.Offset,
+                    m.Message.Key,
+                    m.Message.Value,
+                    m.Message.Value.Length
+                )
 
                 System.Threading.Thread.Sleep 1000
 
                 if not enableAutocommit then
-                    if System.Random().Next(0, 6) >= 4 then
+                    if allowSkip && System.Random().Next(0, 6) >= 4 then
                         // simulation of error, which leads to skip the commit
                         logger.LogTrace (sprintf "[%02i] Message<O:{offset}> --> SKIP commit" i, m.Message.Offset)
 

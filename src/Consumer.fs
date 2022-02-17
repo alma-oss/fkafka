@@ -250,9 +250,9 @@ module Consumer =
                 logger.LogInformation("Last message state: {key} -> {value}", key, value)
             )
 
-        let clearLastMessageManuallyCommittedState (logger: ILogger) =
-            logger.LogInformation("Clear consumer manual commit state: {currentState}", (lastMessageManuallyCommittedState |> State.items))
-            State.clear lastMessageManuallyCommittedState
+        let private clearLastMessageManuallyCommittedState key =
+            lastMessageManuallyCommittedState
+            |> State.set (Key key) NoConsumedMessage
 
         let private manualCommit (consumer: Consumer) manualCommitKey (KafkaMessage result) = ManualCommit (fun () ->
             try
@@ -432,7 +432,10 @@ module Consumer =
                     markAsDisabled |> MarkAsDisabled.execute
             }
 
-        let seq connect (consumeMessage: ConsumeMessage<'Message>) configuration =
+        let seq connect (consumeMessage: ConsumeMessage<'Message>) (configuration: ConsumerConfiguration) =
+            ManualCommitKey (configuration.Connection.Topic, configuration.GroupId)
+            |> clearLastMessageManuallyCommittedState
+
             match (configuration.Checker, configuration.IntervalChecker) with
             | Some checker, Some intervalChecker -> consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker configuration
             | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty configuration
@@ -483,4 +486,3 @@ module Consumer =
     // Handle Consumer state for manual commits
 
     let logLastMessageManuallyCommittedState = Consume.logLastMessageManuallyCommittedState
-    let clearLastMessageManuallyCommittedState = Consume.clearLastMessageManuallyCommittedState

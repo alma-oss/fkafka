@@ -65,7 +65,7 @@ type internal CreateKafkaMessage = MessageToProduce -> KafkaMessage
 
 [<RequireQualifiedAccess>]
 module MessageToProduce =
-    let private asKafkaHeaders headers =
+    let internal asKafkaHeaders headers =
         let messageHeaders = Headers()
         headers |> List.iter (Header.toKafkaHeader >> messageHeaders.Add)
         messageHeaders
@@ -224,14 +224,15 @@ module Producer =
                 | FatalError (code, reason) -> $"Kafka fatal error({code}): {reason}"
                 | RuntimeError (code, reason) -> $"Kafka runtime error({code}): {reason}"
 
-        let messageWith (producer: Producer) message =
+        let messageWith (producer: Producer) (message: MessageToProduce) =
             let topicValue = producer.Runtime.Topic
-            let message = message |> MessageToProduce.createKafkaMessage
 
             let produceTrace =
+                let headers = message.Headers |> MessageToProduce.asKafkaHeaders
+
                 if producer.Runtime.UseTracing then
                     "Produce event"
-                    |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders message.Headers >> Trace.ofContextOption)
+                    |> Trace.ChildOf.continueOrStart (Trace.extractFromKafkaHeaders headers >> Trace.ofContextOption)
                     |> Trace.addTags [
                         "peer.service", "kafka"
                         "peer.address", producer.Runtime.BootstrapServers
@@ -242,7 +243,11 @@ module Producer =
                     ]
                 else Inactive
 
-            (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, message, fun delivery ->
+            let messageWithProduceTrace =
+                { message with Headers = message.Headers |> Trace.inject produceTrace}
+                |> MessageToProduce.createKafkaMessage
+
+            (producer.KafkaProducer |> KafkaProducer.value).Produce(topicValue, messageWithProduceTrace, fun delivery ->
                 let traceError error =
                     produceTrace
                     |> Trace.addError (error |> TracedError.ofError ProduceError.format)

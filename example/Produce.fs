@@ -10,7 +10,11 @@ let produceMessages configuration trace messages =
     printfn "Start producing ..."
     use producer = Producer.create configuration
 
-    let produce message =
+    let produce (message: MessageToProduce) =
+        use trace =
+            "Produce message"
+            |> Trace.ChildOf.startActive trace
+            |> Trace.addTags [ "event.key", (message.Key |> MessageKey.value) ]
         printfn "produce message: %A" message
         message
         |> Producer.produceWithTrace producer trace
@@ -37,7 +41,7 @@ let main argv =
 
     let configuration: ProducerConfiguration = ProducerConfiguration.createWithConnection {
         BrokerList = BrokerList brokerList
-        Topic = StreamName topicWithPartitions
+        Topic = StreamName topic
     }
 
     use loggerFactory = LoggerFactory.create [
@@ -49,17 +53,17 @@ let main argv =
     logger.LogInformation("Trace {trace}", exampleTrace |> Trace.id)
     let configuration = { configuration with Logger = Some logger }
 
+    let now() =
+        DateTime.Now
+
     let produceWithKeys () =
         [
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"one"], "one")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"two"], "two")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"three"], "three")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"two"], "two(2)")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"four"], "four")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"five"], "five")
-            MessageToProduce.create (MessageKey.Delimited ["all";"common";"five"], "five(2)")
+            MessageToProduce.create (MessageKey.Simple "one", $"event-one-{now()}")
+            MessageToProduce.create (MessageKey.Simple "two", $"event-two-{now()}")
+            MessageToProduce.create (MessageKey.Simple "three", $"event-three-{now()}")
+            MessageToProduce.create (MessageKey.Simple "four", $"event-four-{now()}")
+            MessageToProduce.create (MessageKey.Simple "five", $"event-five-{now()}")
         ]
-        |> List.take 1
         |> produceMessages configuration exampleTrace
 
     produceWithKeys()

@@ -7,6 +7,7 @@ open Microsoft.Extensions.Logging
 
 open Lmc.Metrics.ServiceStatus
 open Lmc.Tracing
+open Lmc.ErrorHandling
 
 [<RequireQualifiedAccess>]
 type FailOnNotCommittedMessage =
@@ -123,10 +124,10 @@ module Consumer =
         let map f message =
             { Message = message.Message |> f; Trace = message.Trace; Commit = message.Commit }
 
-    type TracedMessageResult<'Message> = Result<TracedMessage<'Message>, ConsumeError>
+    type internal TracedMessageResult<'Message> = Result<TracedMessage<'Message>, ConsumeError * Trace>
 
     [<RequireQualifiedAccess>]
-    module TracedMessageResult =
+    module internal TracedMessageResult =
         let map f =
             Result.map (TracedMessage.map f)
 
@@ -223,7 +224,7 @@ module Consumer =
     module private Consume =
         open Lmc.State.ConcurrentStorage
 
-        type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError> option
+        type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError * Trace> option
 
         let private createStartReadingMessage groupId =
             let groupIdToLog = function
@@ -240,8 +241,18 @@ module Consumer =
             | MessageIsNotCommitedYet
             | MessageIsCommited
 
-        type private MaunalCommitKey = MaunalCommitKey of (StreamName * GroupId)
-        let private lastMessageManuallyCommittedState: State<MaunalCommitKey, LastMessageManuallyCommitted> = State.empty()
+        type private ManualCommitKey = ManualCommitKey of (StreamName * GroupId)
+        let private lastMessageManuallyCommittedState: State<ManualCommitKey, LastMessageManuallyCommitted> = State.empty()
+
+        let logLastMessageManuallyCommittedState (logger: ILogger) =
+            lastMessageManuallyCommittedState
+            |> State.iter (fun (Key key, value) ->
+                logger.LogInformation("Last message state: {key} -> {value}", key, value)
+            )
+
+        let clearLastMessageManuallyCommittedState (logger: ILogger) =
+            logger.LogInformation("Clear consumer manual commit state: {currentState}", (lastMessageManuallyCommittedState |> State.items))
+            State.clear lastMessageManuallyCommittedState
 
         let private manualCommit (consumer: Consumer) manualCommitKey (KafkaMessage result) = ManualCommit (fun () ->
             try
@@ -260,7 +271,7 @@ module Consumer =
         let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
                 let consumeResult = (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
-                let manualCommitKey = MaunalCommitKey (StreamName consumer.Runtime.Topic, GroupId.Id consumer.Runtime.GroupId)
+                let manualCommitKey = ManualCommitKey (StreamName consumer.Runtime.Topic, GroupId.Id consumer.Runtime.GroupId)
 
                 if isNull consumeResult then
                     lastMessageManuallyCommittedState |> State.tryRemove (Key manualCommitKey)
@@ -289,7 +300,7 @@ module Consumer =
                     let messageResult =
                         match lastMessageManuallyCommittedState |> State.tryFind (Key manualCommitKey) with
                         | Some MessageIsNotCommitedYet when not consumer.Runtime.IsAutocommitEnabled && consumer.Runtime.FailOnNotCommittedMessage ->
-                            Result.Error ConsumeError.PreviousMessageWasNotCommited
+                            Result.Error (ConsumeError.PreviousMessageWasNotCommited, trace)
                         | _ ->
                             lastMessageManuallyCommittedState |> State.set (Key manualCommitKey) MessageIsNotCommitedYet
                             Ok {
@@ -300,8 +311,8 @@ module Consumer =
 
                     Some messageResult
             with
-            | :? KafkaException as e -> Result.Error (ConsumeError.KafkaException e) |> Some
-            | e -> Result.Error (ConsumeError.RuntimeException e) |> Some
+            | :? KafkaException as e -> Result.Error (ConsumeError.KafkaException e, Trace.Inactive) |> Some
+            | e -> Result.Error (ConsumeError.RuntimeException e, Trace.Inactive) |> Some
 
         /// Helper function to combine all map functions
         let private map f = Option.map (TracedMessageResult.map (KafkaMessage.value >> f))
@@ -413,7 +424,7 @@ module Consumer =
                             )
 
                         if consumeError.IsSome then
-                            yield Result.Error consumeError.Value
+                            yield Result.Error (consumeError.Value, Trace.Inactive)
                 finally
                     consumer.LogDebug "Cancel checker tokens ..."
                     cancellationTokenSource.Cancel()
@@ -447,6 +458,13 @@ module Consumer =
                     |> parseEvent
             }
         )
+        |> Result.mapError (fun (error, trace) ->
+            trace
+            |> Trace.addError (error |> TracedError.ofError (sprintf "%A"))
+            |> Trace.finish
+
+            error
+        )
 
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> seq =
         configuration
@@ -461,3 +479,8 @@ module Consumer =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
         |> Seq.map (parseConsumedMessage parse)
+
+    // Handle Consumer state for manual commits
+
+    let logLastMessageManuallyCommittedState = Consume.logLastMessageManuallyCommittedState
+    let clearLastMessageManuallyCommittedState = Consume.clearLastMessageManuallyCommittedState

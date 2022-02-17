@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 20.1.0 - 2022-02-17
 - Fix `TracedMessageResult` type and module to be `internal` as it was meant
     - Also internally change the error to have a trace as well
 - Fix consume results to have a trace with error when consume fails

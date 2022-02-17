@@ -2,6 +2,13 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix `TracedMessageResult` type and module to be `internal` as it was meant
+    - Also internally change the error to have a trace as well
+- Fix consume results to have a trace with error when consume fails
+- Add `Consumer` functions
+    - `Consumer.logLastMessageManuallyCommittedState`
+    - `Consumer.clearLastMessageManuallyCommittedState`
+- Fix trace in produced message to be the `produce event` trace (not its parent)
 
 ## 20.0.0 - 2022-01-24
 - [**BC**] Use string key in produced message

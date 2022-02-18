@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Remove unwanted function `Consumer.clearLastMessageManuallyCommittedState` and handle the clearing state internally, when consuming starts
 
 ## 20.1.0 - 2022-02-17
 - Fix `TracedMessageResult` type and module to be `internal` as it was meant

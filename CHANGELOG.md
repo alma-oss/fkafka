@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 20.1.1 - 2022-02-18
 - Remove unwanted function `Consumer.clearLastMessageManuallyCommittedState` and handle the clearing state internally, when consuming starts
 
 ## 20.1.0 - 2022-02-17

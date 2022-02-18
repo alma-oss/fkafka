@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix custom equality problem with `StreamName` and `GroupId` types which messes with clearing the manual commit state
 
 ## 20.1.1 - 2022-02-18
 - Remove unwanted function `Consumer.clearLastMessageManuallyCommittedState` and handle the clearing state internally, when consuming starts

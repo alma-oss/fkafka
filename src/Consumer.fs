@@ -250,7 +250,9 @@ module Consumer =
                 logger.LogInformation("Last message state: {key} -> {value}", key, value)
             )
 
-        let private clearLastMessageManuallyCommittedState key =
+        let private clearLastMessageManuallyCommittedState (logger: ILogger option) (key: ManualCommitKey) =
+            logger |> Option.iter (fun logger -> logger.LogDebug("Clearing manual commit state for {key}", key))
+
             lastMessageManuallyCommittedState
             |> State.set (Key key) NoConsumedMessage
 
@@ -434,7 +436,7 @@ module Consumer =
 
         let seq connect (consumeMessage: ConsumeMessage<'Message>) (configuration: ConsumerConfiguration) =
             ManualCommitKey (configuration.Connection.Topic, configuration.GroupId)
-            |> clearLastMessageManuallyCommittedState
+            |> clearLastMessageManuallyCommittedState configuration.Logger
 
             match (configuration.Checker, configuration.IntervalChecker) with
             | Some checker, Some intervalChecker -> consumeMessageSeqWithChecker connect consumeMessage checker intervalChecker configuration

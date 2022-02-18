@@ -16,20 +16,51 @@ type BrokerList = BrokerList of string
 module BrokerList =
     let value (BrokerList brokerList) = brokerList
 
+[<CustomEquality; NoComparison>]
 type StreamName =
     | StreamName of string
     | Instance of Instance
 
-[<RequireQualifiedAccess>]
-module StreamName =
-    let value = function
+    member internal this.Value =
+        match this with
         | (StreamName streamName) -> streamName
         | Instance instance -> instance |> Instance.concat "-"
 
+    override this.GetHashCode() =
+        this.Value |> hash
+
+    override this.Equals (b) =
+        match b with
+        | :? StreamName as streamB -> this.Value = streamB.Value
+        | _ -> false
+
 [<RequireQualifiedAccess>]
+module StreamName =
+    let value: StreamName -> string =
+        fun stream -> stream.Value
+
+[<RequireQualifiedAccess>]
+[<CustomEquality; NoComparison>]
 type GroupId =
     | Random
     | Id of string
+
+    member internal this.Value =
+        match this with
+        | Id groupId -> groupId
+        | Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
+
+    override this.GetHashCode() =
+        this.Value |> hash
+
+    override this.Equals (b) =
+        match b with
+        | :? GroupId as groupId ->
+            match this, groupId with
+            | Random, Random -> true
+            | Id thisId, Id bValue -> thisId = bValue
+            | _ -> false
+        | _ -> false
 
 [<RequireQualifiedAccess>]
 module GroupId =
@@ -37,9 +68,8 @@ module GroupId =
         | GroupId.Id groupId -> groupId |> f |> GroupId.Id
         | GroupId.Random -> GroupId.Random
 
-    let value = function
-        | GroupId.Id groupId -> groupId
-        | GroupId.Random -> sprintf "random-%d" System.DateTime.Now.Ticks    // random (unique) group id means, it will always starts from the beginning
+    let value: GroupId -> string =
+        fun groupId -> groupId.Value
 
 //
 // Headers

@@ -61,8 +61,8 @@ let main argv =
             MessageToProduce.create (MessageKey.Simple "one", $"event-one-{now()}")
             MessageToProduce.create (MessageKey.Simple "two", $"event-two-{now()}")
             MessageToProduce.create (MessageKey.Simple "three", $"event-three-{now()}")
-            MessageToProduce.create (MessageKey.Simple "four", $"event-four-{now()}")
-            MessageToProduce.create (MessageKey.Simple "five", $"event-five-{now()}")
+            //MessageToProduce.create (MessageKey.Simple "four", $"event-four-{now()}")
+            //MessageToProduce.create (MessageKey.Simple "five", $"event-five-{now()}")
         ]
         |> produceMessages configuration exampleTrace
 

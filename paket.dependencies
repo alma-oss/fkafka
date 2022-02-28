@@ -14,7 +14,7 @@ nuget Lmc.Metrics ~> 6.1
 nuget Lmc.Serializer ~> 3.0
 nuget Lmc.ServiceIdentification ~> 6.0
 nuget Lmc.State ~> 5.0
-nuget Lmc.Tracing ~> 4.0
+nuget Lmc.Tracing ~> 5.0
 
 // [ FAKE GROUP ]
 group Build

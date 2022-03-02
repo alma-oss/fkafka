@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 20.5.0 - 2022-03-02
 - Add `ConsumeError.RuntimeError` case
 
 ## 20.4.0 - 2022-03-02

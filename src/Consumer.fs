@@ -54,6 +54,7 @@ module ConsumerConfiguration =
 type ConsumeError =
     | KafkaException of KafkaException
     | RuntimeException of exn
+    | RuntimeError of string
     | BrokerError
     | TopicError
     | MaxRetriesReached of KafkaException

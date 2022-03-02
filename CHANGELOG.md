@@ -2,6 +2,11 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Allow `async` parse
+    - Add `ParseEventAsyncResult<'Event>` type
+    - Add `ParseEventMessageAsyncResult<'Event>` type
+    - Add `Consumer.consumeAsync` function
+    - Add `Consumer.consumeMessagesAsync` function
 
 ## 20.3.0 - 2022-02-28
 - Update dependencies

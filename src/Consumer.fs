@@ -443,47 +443,92 @@ module Consumer =
             | Some checker, None -> consumeMessageSeqWithChecker connect consumeMessage checker IntervalChecker.empty configuration
             | _ -> consumeMessageSeq connect consumeMessage configuration
 
-    //
-    // Public api
-    //
-
-    // Consume events as string values
-
-    type ParseEvent<'Event> = TracedMessage<string> -> 'Event
-    type ConsumedResult<'Event> = Result<ConsumedMessage<'Event>, ConsumeError>
-
-    let private parseConsumedMessage (parseEvent: TracedMessage<'Message> -> 'Event) (tracedMessage: TracedMessageResult<'Message>): ConsumedResult<'Event> =
-        tracedMessage
-        |> Result.map (fun tracedMessage ->
-            {
-                Commit = tracedMessage.Commit
-                Message =
-                    tracedMessage
-                    |> TracedMessage.finish
-                    |> parseEvent
-            }
-        )
-        |> Result.mapError (fun (error, trace) ->
+    [<RequireQualifiedAccess>]
+    module private Parse =
+        let private handleTracedConsumeError (error: ConsumeError, trace: Trace) =
             trace
             |> Trace.addError (error |> TracedError.ofError (sprintf "%A"))
             |> Trace.finish
 
             error
-        )
+
+        let consumedMessage
+            (parseEvent: TracedMessage<'Message> -> 'Event)
+            (tracedMessage: TracedMessageResult<'Message>)
+            : Result<ConsumedMessage<'Event>, ConsumeError> =
+            result {
+                let! (tracedMessage: TracedMessage<'Message>) = tracedMessage
+
+                let (parsedEvent: 'Event) =
+                    tracedMessage
+                    |> TracedMessage.finish
+                    |> parseEvent
+
+                return {
+                    Commit = tracedMessage.Commit
+                    Message = parsedEvent
+                }
+            }
+            |> Result.mapError handleTracedConsumeError
+
+        let consumedMessageAsync<'Message, 'Event>
+            (parseEvent: TracedMessage<'Message> -> AsyncResult<'Event, ConsumeError>)
+            (tracedMessageResult: TracedMessageResult<'Message>)
+            : AsyncResult<ConsumedMessage<'Event>, ConsumeError> =
+            asyncResult {
+                let! (tracedMessage: TracedMessage<'Message>) = tracedMessageResult
+
+                let! (parsedMessage: 'Event) =
+                    tracedMessage
+                    |> TracedMessage.finish
+                    |> parseEvent
+                    |> AsyncResult.mapError (fun consumeError -> consumeError, tracedMessage.Trace)
+
+                let consumedMessage: ConsumedMessage<'Event> = {
+                    Commit = tracedMessage.Commit
+                    Message = parsedMessage
+                }
+
+                return consumedMessage
+            }
+            |> AsyncResult.mapError handleTracedConsumeError
+
+    //
+    // Public api
+    //
+
+    type ConsumedResult<'Event> = Result<ConsumedMessage<'Event>, ConsumeError>
+    type ConsumedAsyncResult<'Event> = AsyncResult<ConsumedMessage<'Event>, ConsumeError>
+
+    // Consume events as string values
+
+    type ParseEvent<'Event> = TracedMessage<string> -> 'Event
+    type ParseEventAsyncResult<'Event> = TracedMessage<string> -> AsyncResult<'Event, ConsumeError>
 
     let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
-        |> Seq.map (parseConsumedMessage parse)
+        |> Seq.map (Parse.consumedMessage parse)
+
+    let consumeAsync (configuration: ConsumerConfiguration) (parse: ParseEventAsyncResult<'Event>): ConsumedAsyncResult<'Event> seq =
+        configuration
+        |> Consume.seq Consumer.connect Consume.consumeMessageValue
+        |> Seq.map (Parse.consumedMessageAsync parse)
 
     // Consume events as Messages
 
     type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
+    type ParseEventMessageAsyncResult<'Event> = TracedMessage<Message> -> AsyncResult<'Event, ConsumeError>
 
     let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): ConsumedResult<'Event> seq =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
-        |> Seq.map (parseConsumedMessage parse)
+        |> Seq.map (Parse.consumedMessage parse)
+
+    let consumeMessagesAsync (configuration: ConsumerConfiguration) (parse: ParseEventMessageAsyncResult<'Event>): ConsumedAsyncResult<'Event> seq =
+        configuration
+        |> Consume.seq Consumer.connect Consume.consumeMessage
+        |> Seq.map (Parse.consumedMessageAsync parse)
 
     // Handle Consumer state for manual commits
 

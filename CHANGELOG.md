@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Allow to cancel consuming
+    - [**BC**] Add `Cancellation` field to the `Consumer` configuration
 
 ## 20.5.0 - 2022-03-02
 - Add `ConsumeError.RuntimeError` case

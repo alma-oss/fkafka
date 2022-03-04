@@ -26,6 +26,7 @@ type ConsumerConfiguration = {
     Checker: Checker option
     IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
+    Cancellation: CancellationToken option
 
     /// Default: Automatically (same as Kafka.EnableAutocommit: true)
     CommitMessage: CommitMessage
@@ -41,6 +42,7 @@ module ConsumerConfiguration =
             Checker = None
             IntervalChecker = None
             ServiceStatus = None
+            Cancellation = None
             CommitMessage = CommitMessage.Automatically
         }
 
@@ -107,6 +109,7 @@ module Consumer =
         FailOnNotCommittedMessage: bool
 
         UseTracing: bool
+        Cancellation: CancellationToken option
     }
 
     [<Struct>]
@@ -206,6 +209,7 @@ module Consumer =
                         | _ -> false
 
                     UseTracing = Tracer.Check.isTracerAvailable()
+                    Cancellation = configuration.Cancellation
                 }
                 Logger = configuration.Logger
             }
@@ -273,7 +277,12 @@ module Consumer =
 
         let private consume: ConsumeMessage<KafkaMessage> = fun consumer ->
             try
-                let consumeResult = (consumer.KafkaConsumer |> KafkaConsumer.value).Consume()
+                let consumeResult =
+                    let kafkaConsumer = consumer.KafkaConsumer |> KafkaConsumer.value
+                    match consumer.Runtime.Cancellation with
+                    | Some cancelationToken -> kafkaConsumer.Consume(cancelationToken)
+                    | _ -> kafkaConsumer.Consume()
+
                 let manualCommitKey = ManualCommitKey (StreamName consumer.Runtime.Topic, GroupId.Id consumer.Runtime.GroupId)
 
                 if isNull consumeResult then

@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 21.0.0 - 2022-03-04
 - Allow to cancel consuming
     - [**BC**] Add `Cancellation` field to the `Consumer` configuration
 

@@ -2,42 +2,17 @@ namespace Lmc.Kafka
 
 [<RequireQualifiedAccess>]
 module internal Trace =
-    open OpenTracing
-    open OpenTracing.Propagation
-    open OpenTracing.Tag
-
     open Lmc.Tracing
+    open Lmc.Tracing.Extension
 
-    [<AutoOpen>]
-    module private Headers =
-        open System.Collections.Generic
-
-        type Headers = Dictionary<string, string>
-        type IHeaders = IDictionary<string, string>
-
-        type HeaderSeq = (string * string) seq
-
-        let headersToDictionary (headerList: HeaderSeq): IHeaders =
-            headerList
-            |> Seq.fold
-                (fun (headers: Headers) (key, value) ->
-                    headers.Add(key, value)
-                    headers
-                )
-                (Headers())
-            :> IHeaders
-
-    let private kafkaHeadersToDictionary headers =
+    let private kafkaHeadersToList headers =
         headers
         |> List.map (fun header -> header |> Header.key |> HeaderKey.value, header |> Header.valueAsString)
-        |> headersToDictionary
 
     let extractFromHeaders (headers: Header list) =
-        let httpHeadersCarrier = TextMapExtractAdapter(headers |> kafkaHeadersToDictionary) :> ITextMap
-
-        match Tracer.tracer().Extract(BuiltinFormats.HttpHeaders, httpHeadersCarrier) with
-        | null -> None
-        | context -> Some (TraceContext context)
+        headers
+        |> kafkaHeadersToList
+        |> Http.extractFromHeaders
 
     let extractFromKafkaHeaders (headers: Confluent.Kafka.Headers) () =
         match headers with
@@ -49,15 +24,10 @@ module internal Trace =
             |> extractFromHeaders
 
     let inject trace (headers: Header list) =
-        match trace |> Trace.context with
-        | Some (TraceContext context) ->
-            let headersDict = headers |> kafkaHeadersToDictionary
-            let kafkaHeadersCarrier = TextMapInjectAdapter(headersDict) :> ITextMap
-
-            Tracer.tracer().Inject(context, BuiltinFormats.HttpHeaders, kafkaHeadersCarrier)
-
-            headersDict
-            |> Seq.map (fun kv -> kv.Value |> Header.ofString (HeaderKey kv.Key))
-            |> Seq.toList
-
-        | _ -> headers
+        match trace with
+        | Inactive -> headers
+        | _ ->
+            headers
+            |> kafkaHeadersToList
+            |> Http.inject trace
+            |> List.map (fun (key, value) -> value |> Header.ofString (HeaderKey key))

@@ -27,6 +27,7 @@ type ConsumerConfiguration = {
     IntervalChecker: IntervalChecker option
     ServiceStatus: ServiceStatus option
     Cancellation: CancellationToken option
+    CountLag: bool
 
     /// Default: Automatically (same as Kafka.EnableAutocommit: true)
     CommitMessage: CommitMessage
@@ -43,6 +44,7 @@ module ConsumerConfiguration =
             IntervalChecker = None
             ServiceStatus = None
             Cancellation = None
+            CountLag = false
             CommitMessage = CommitMessage.Automatically
         }
 
@@ -107,6 +109,7 @@ module Consumer =
         /// If autocommit is not enabled, consumer client must commit the processed result manually
         IsAutocommitEnabled: bool
         FailOnNotCommittedMessage: bool
+        CountLag: bool
 
         UseTracing: bool
         Cancellation: CancellationToken option
@@ -160,6 +163,7 @@ module Consumer =
         Partition: int option
         Offset: int64 option
         Value: string
+        Lag: int64 option
     }
 
     [<RequireQualifiedAccess>]
@@ -207,6 +211,7 @@ module Consumer =
                         match configuration.CommitMessage with
                         | CommitMessage.Manually FailOnNotCommittedMessage.WithException -> true
                         | _ -> false
+                    CountLag = true
 
                     UseTracing = Tracer.Check.isTracerAvailable()
                     Cancellation = configuration.Cancellation
@@ -224,6 +229,32 @@ module Consumer =
 
         let close (consumer: Consumer) =
             consumer.Close()
+
+    [<RequireQualifiedAccess>]
+    module private Lag =
+        let private countForPartition offset partition (KafkaConsumer consumer) =
+            let watermark = consumer.GetWatermarkOffsets(partition)
+
+            if watermark.High.IsSpecial || watermark.Low.IsSpecial then None
+            else
+                let lowOffset = offset |> Option.defaultValue watermark.Low.Value
+                Some (watermark.High.Value - lowOffset - (int64 1))
+
+        let count: Consumer -> int64 option = function
+            | { Runtime = { CountLag = false }} -> None
+            | consumer ->
+                let (KafkaConsumer kafkaConsumer) = consumer.KafkaConsumer
+
+                kafkaConsumer.Assignment
+                |> Seq.fold
+                    (fun acc partition ->
+                        let currentOffset = kafkaConsumer.Position(partition)
+                        match consumer.KafkaConsumer |> countForPartition (Some currentOffset.Value) partition with
+                        | Some lag -> acc + lag
+                        | _ -> acc
+                    )
+                    (int64 0)
+                |> Some
 
     [<RequireQualifiedAccess>]
     module private Consume =
@@ -341,6 +372,7 @@ module Consumer =
                 Partition = if message.Partition.IsSpecial then None else Some message.Partition.Value
                 Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
                 Value = message.Message.Value
+                Lag = consumer |> Lag.count
             })
 
         let private consumeMessageSeq connect (consumeMessage: ConsumeMessage<'Message>) configuration =

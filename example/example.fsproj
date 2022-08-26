@@ -8,7 +8,7 @@
     <ProjectReference Include="../Kafka.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Produce.fs" />
+    <Compile Include="ConsumerLag.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

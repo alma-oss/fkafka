@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `CountLag` option for `ConsumerConfiguration`
+- Add `Lag` field in `Consumer.Message`
 
 ## 22.0.0 - 2022-05-17
 - Update dependencies

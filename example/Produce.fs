@@ -74,9 +74,11 @@ let main argv =
     printfn "Produce message"
     printfn "==============="
 
-    let brokerList = "kfall-1.dev1.services.lmc:9092"
-    let topic = "development-local-experimental-v1"
+    let brokerList = "kfall-2.dev1.services.lmc:9092"
+    let topicWithASinglePartition = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
+
+    let topic = topicWithPartitions
 
     if Tracer.Check.isTracerAvailable() |> not then
         failwithf "Tracer is not available\n%A" (Tracer.Check.environment())

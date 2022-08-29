@@ -97,6 +97,12 @@ module Consumer =
     module private KafkaConsumer =
         let value (KafkaConsumer kafkaConsumer) = kafkaConsumer
 
+    [<RequireQualifiedAccess>]
+    module private KafkaOffset =
+        let value: Offset -> int64 option = function
+            | special when special.IsSpecial -> None
+            | offset -> Some offset.Value
+
     [<Struct>]
     type internal ConsumeRuntime = {
         /// Acutal list of bootstrap servers used for consuming
@@ -238,7 +244,13 @@ module Consumer =
             if watermark.High.IsSpecial || watermark.Low.IsSpecial then None
             else
                 let lowOffset = offset |> Option.defaultValue watermark.Low.Value
-                Some (watermark.High.Value - lowOffset - (int64 1))
+                let result = watermark.High.Value - lowOffset
+
+                //! For debugging only
+                (* if (watermark.High.Value + lowOffset > 0) then
+                    printfn $"  -[{partition}]-> {watermark.High.Value} - {lowOffset} = {result}" *)
+
+                Some result
 
         let count: Consumer -> int64 option = function
             | { Runtime = { CountLag = false }} -> None
@@ -248,8 +260,11 @@ module Consumer =
                 kafkaConsumer.Assignment
                 |> Seq.fold
                     (fun acc partition ->
-                        let currentOffset = kafkaConsumer.Position(partition)
-                        match consumer.KafkaConsumer |> countForPartition (Some currentOffset.Value) partition with
+                        let currentOffset =
+                            kafkaConsumer.Position(partition)
+                            |> KafkaOffset.value
+
+                        match consumer.KafkaConsumer |> countForPartition currentOffset partition with
                         | Some lag -> acc + lag
                         | _ -> acc
                     )
@@ -370,7 +385,7 @@ module Consumer =
             |> consume
             |> map (fun message -> {
                 Partition = if message.Partition.IsSpecial then None else Some message.Partition.Value
-                Offset = if message.Offset.IsSpecial then None else Some message.Offset.Value
+                Offset = message.Offset |> KafkaOffset.value
                 Value = message.Message.Value
                 Lag = consumer |> Lag.count
             })

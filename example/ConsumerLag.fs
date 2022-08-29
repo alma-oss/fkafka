@@ -44,7 +44,7 @@ let runConsume configuration (logger: ILogger) =
                 sprintf "[%02i] Message[P:{partition}|O:{offset}]: {value}[{length}] - Lag:{lag}" i,
                 m.Message.Partition,
                 m.Message.Offset,
-                m.Message.Value,
+                "m.Message.Value",
                 m.Message.Value.Length,
                 m.Message.Lag
             )
@@ -75,8 +75,9 @@ let main argv =
 
     let brokerList = "kfall-2.dev1.services.lmc:9092"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
+    //let topicWithPartitions = "consents-contractAggregateStateInterpreterStream-development-v1"
 
-    let groupId = "consumer-lag-group-id-v004"
+    let groupId = "consumer-lag-group-id-v010"
 
     use loggerFactory = LoggerFactory.create [
         UseLevel LogLevel.Trace

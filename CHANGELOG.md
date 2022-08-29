@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Fix counting a lag
 
 ## 23.0.0 - 2022-08-26
 - [**BC**] Add `CountLag` option for `ConsumerConfiguration`

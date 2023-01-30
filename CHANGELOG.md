@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update dependencies
+    - Use `librdkafka` and `Confluent.Kafka` 2.0.2
 
 ## 23.0.1 - 2022-08-29
 - Fix counting a lag

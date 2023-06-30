@@ -9,17 +9,20 @@ open Microsoft.Extensions.Logging
 let main argv =
     printfn "Example\n=======\n"
 
-    let brokerList = "kfall-1.dev1.services.lmc:9092"
+    //let brokerList = "kfall-2.dev1.services.lmc:9092"
+    let brokerList = "kafka.service.dev1-services.consul:9092"
     let topic = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
+    let organizationStream = "consents-intentOrganizationStream-development-v1v2"
 
-    let groupId = "consumer-group-id-v006"
+    let stream = topic
+    let groupId = "consumer-group-id-v2.0.2+2.1.1-2"
 
     /// default: true
-    let enableAutocommit = false
+    let enableAutocommit = true
 
     /// If the value is true and autocommit is disabled, it will end with errors (to simulate the problem)
-    let allowSkip = true
+    let allowSkip = false
 
     (* printfn "Configuration: %A" [
         //("groupId", groupId)
@@ -37,7 +40,7 @@ let main argv =
     logger.LogInformation "Start consuming ..."
     let connection = {
         BrokerList = BrokerList brokerList
-        Topic = StreamName topicWithPartitions
+        Topic = StreamName stream
     }
     let configuration =
         { ConsumerConfiguration.createWithConnection connection (GroupId.Id groupId) with
@@ -53,14 +56,13 @@ let main argv =
     let execute () =
         Consumer.consumeMessages configuration id
         |> Seq.map (fun m -> i <- i + 1; m)
-        // |> Seq.take 50
+        //|> Seq.take 5
         |> Seq.iter (function
             | Ok { Message = m } ->
                 logger.LogTrace (
-                    sprintf "[%02i] Message[P:{partition}|O:{offset}]<K:{key}>: {value}[{length}]" i,
+                    sprintf "[%02i] Message[P:{partition}|O:{offset}]: {value}[{length}]" i,
                     m.Message.Partition,
                     m.Message.Offset,
-                    m.Message.Key,
                     m.Message.Value,
                     m.Message.Value.Length
                 )

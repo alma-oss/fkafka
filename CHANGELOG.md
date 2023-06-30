@@ -2,6 +2,14 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Lock version of `Confluent.Kafka and librdkafka` in 2.0.2
+    > There is no issue for it, but since version 2.1.0, first 1 (or 2) consumed messages are not connected correctly. After those, everything works fine.
+
+    Error:
+    Confluent.Kafka.ConsumeException: Subscribed topic not available: {topic}: Broker: Unknown topic or partition
+      at Confluent.Kafka.Consumer`2.Consume(Int32 millisecondsTimeout)
+      at Confluent.Kafka.Consumer`2.Consume(CancellationToken cancellationToken)
+      at Lmc.Kafka.Consumer.Consume.consume(Consumer consumer) in /Users/petr.chromec/fsharp/fkafka/src/Consumer.fs:line 332
 
 ## 23.1.0 - 2023-01-30
 - Update dependencies

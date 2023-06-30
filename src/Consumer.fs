@@ -257,6 +257,8 @@ module Consumer =
             | consumer ->
                 let (KafkaConsumer kafkaConsumer) = consumer.KafkaConsumer
 
+                // todo - tady bude nejaky problem v tom, pocitani - bud na `.Assignment` nedostanu vsechy partitiony nebo maji partitiony lag jako special a nespocitam ho
+                // - ale kdyz ctu lag na streamu s vice partitionama, tak dostavam lag jen z jedne (asi)
                 kafkaConsumer.Assignment
                 |> Seq.fold
                     (fun acc partition ->

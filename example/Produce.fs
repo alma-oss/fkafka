@@ -62,7 +62,7 @@ module ProduceMultipleMessagesWithOwnTraceForEachMessage =
 
         let produce = produce producer
 
-        for i in 1 .. 4_000 do
+        for i in 1 .. 10 do
             let id = sprintf "%05i" i
             use eventTrace = Trace.Active.start $"Event {i}"
 
@@ -74,11 +74,11 @@ let main argv =
     printfn "Produce message"
     printfn "==============="
 
-    let brokerList = "kfall-2.dev1.services.lmc:9092"
+    let brokerList = "kafka.service.dev1-services.consul:9092"
     let topicWithASinglePartition = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
 
-    let topic = topicWithPartitions
+    let topic = topicWithASinglePartition
 
     if Tracer.Check.isTracerAvailable() |> not then
         failwithf "Tracer is not available\n%A" (Tracer.Check.environment())

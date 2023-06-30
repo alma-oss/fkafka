@@ -1,6 +1,7 @@
 FSharp.Core
 FSharp.Data
 Confluent.Kafka
+librdkafka.redist
 FSharp.Control.AsyncSeq
 Microsoft.Extensions.Logging
 Lmc.ErrorHandling

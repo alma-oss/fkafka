@@ -2,6 +2,9 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 23.2.0 - 2023-06-30
+- Update dependencies
 - Lock version of `Confluent.Kafka and librdkafka` in 2.0.2
     > There is no issue for it, but since version 2.1.0, first 1 (or 2) consumed messages are not connected correctly. After those, everything works fine.
 

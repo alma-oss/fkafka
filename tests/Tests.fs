@@ -8,4 +8,4 @@ let main argv =
     ]
     |> List.iter System.Environment.SetEnvironmentVariable
 
-    Tests.runTestsInAssembly defaultConfig argv
+    Tests.runTestsInAssemblyWithCLIArgs [ Parallel ] argv

@@ -1,13 +1,13 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
 open System.Threading
 open FSharp.Control
 open Confluent.Kafka
 open Microsoft.Extensions.Logging
 
-open Lmc.Metrics.ServiceStatus
-open Lmc.Tracing
-open Lmc.ErrorHandling
+open Alma.Metrics.ServiceStatus
+open Alma.Tracing
+open Alma.ErrorHandling
 
 [<RequireQualifiedAccess>]
 type FailOnNotCommittedMessage =
@@ -275,7 +275,7 @@ module Consumer =
 
     [<RequireQualifiedAccess>]
     module private Consume =
-        open Lmc.State.ConcurrentStorage
+        open Alma.State.ConcurrentStorage
 
         type ConsumeMessage<'Message> = Consumer -> Result<TracedMessage<'Message>, ConsumeError * Trace> option
 

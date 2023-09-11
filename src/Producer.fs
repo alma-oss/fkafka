@@ -1,9 +1,9 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
 open System
 open Microsoft.Extensions.Logging
-open Lmc.Metrics.ServiceStatus
-open Lmc.Tracing
+open Alma.Metrics.ServiceStatus
+open Alma.Tracing
 
 type ProducerConfiguration = {
     Connection: ConnectionConfiguration
@@ -57,7 +57,7 @@ module MessageKey =
 [<RequireQualifiedAccess>]
 type MessageToProduce = {
     Key: MessageKey
-    Headers: Lmc.Kafka.Header list
+    Headers: Alma.Kafka.Header list
     Value: KafkaMessageValue
 }
 

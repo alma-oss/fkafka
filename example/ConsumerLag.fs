@@ -1,9 +1,9 @@
 // Learn more about F# at http://fsharp.org
 
 open System
-open Lmc.Kafka
-open Lmc.Logging
-open Lmc.ErrorHandling
+open Alma.Kafka
+open Alma.Logging
+open Alma.ErrorHandling
 open Microsoft.Extensions.Logging
 
 (* type Message = {

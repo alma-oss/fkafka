@@ -1,9 +1,9 @@
 // Learn more about F# at http://fsharp.org
 
 open System
-open Lmc.Kafka
-open Lmc.Tracing
-open Lmc.Logging
+open Alma.Kafka
+open Alma.Tracing
+open Alma.Logging
 open Microsoft.Extensions.Logging
 
 let now () = DateTime.Now

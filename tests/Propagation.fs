@@ -1,8 +1,8 @@
 module Propagation
 
 open Expecto
-open Lmc.Tracing
-open Lmc.Kafka
+open Alma.Tracing
+open Alma.Kafka
 
 [<Tests>]
 let checkTracePropagation =

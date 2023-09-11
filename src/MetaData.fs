@@ -1,8 +1,8 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
 module MetaData =
     open System
-    open Lmc.ServiceIdentification
+    open Alma.ServiceIdentification
 
     type NotParsed = NotParsed
 
@@ -49,7 +49,7 @@ module MetaData =
 
     module private Parser =
         open FSharp.Data
-        open Lmc.Kafka
+        open Alma.Kafka
 
         type private MetaDataSchema = JsonProvider<"src/schema/metaData.json", SampleIsList = true>
 
@@ -88,7 +88,7 @@ module MetaData =
 
     [<RequireQualifiedAccess>]
     module MetaDataDto =
-        open Lmc.Serializer
+        open Alma.Serializer
 
         type OnlyCreatedAt = {
             CreatedAt: string

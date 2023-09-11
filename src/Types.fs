@@ -1,7 +1,7 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
-open Lmc.ServiceIdentification
-open Lmc.Metrics.ServiceStatus
+open Alma.ServiceIdentification
+open Alma.Metrics.ServiceStatus
 
 //
 // Common

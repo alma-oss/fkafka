@@ -1,4 +1,4 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
 open FSharp.Control
 

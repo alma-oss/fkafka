@@ -1,8 +1,8 @@
 // Learn more about F# at http://fsharp.org
 
 open System
-open Lmc.Kafka
-open Lmc.Logging
+open Alma.Kafka
+open Alma.Logging
 open Microsoft.Extensions.Logging
 
 [<EntryPoint>]

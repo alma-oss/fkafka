@@ -1,5 +1,5 @@
 open System
-open Lmc.Kafka
+open Alma.Kafka
 
 let produceEvents connection events = async {
     printfn "Produce events"

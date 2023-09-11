@@ -1,9 +1,9 @@
-namespace Lmc.Kafka
+namespace Alma.Kafka
 
 [<RequireQualifiedAccess>]
 module internal Trace =
-    open Lmc.Tracing
-    open Lmc.Tracing.Extension
+    open Alma.Tracing
+    open Alma.Tracing.Extension
 
     let private kafkaHeadersToList headers =
         headers

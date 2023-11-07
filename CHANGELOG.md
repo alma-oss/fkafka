@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Add `Admin.PartitionLag` type and module
+- Add `Admin.lags` function
 
 ## 25.0.0 - 2023-09-11
 - [**BC**] Use `Alma` namespace

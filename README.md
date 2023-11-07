@@ -53,6 +53,40 @@ Consumer.consume configuration (fun tracedMessage ->
 )
 ```
 
+### Getting consumer lags for a groupId
+> https://stackoverflow.com/questions/60506580/how-can-i-list-the-kafka-consumer-lag-and-latest-offset-per-partition-and-consum
+
+```fs
+open System
+open Microsoft.Extensions.Logging
+open Alma.Kafka
+open Alma.Kafka.Admin
+open Alma.Logging
+open Alma.ErrorHandling
+
+let brokerList = BrokerList "127.0.0.1:9092"
+let topic = StreamName "my-topic"
+let groupId = GroupId.Id "group-id-to-check"
+
+use loggerFactory = LoggerFactory.create [
+    UseLevel LogLevel.Trace
+    LogToConsole
+]
+let logger = loggerFactory.CreateLogger("Logger")
+
+let partitionLags =
+    Admin.lags logger { BrokerList = brokerList; Topic = topic } groupId
+    |> Async.RunSynchronously
+
+let totalLag =
+    partitionLags
+    |> List.sumBy PartitionLag.lag
+
+printfn "total lag: %A" totalLag
+```
+
+---
+
 ## Release
 1. Increment version in `Kafka.fsproj`
 2. Update `CHANGELOG.md`

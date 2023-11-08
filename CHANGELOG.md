@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 25.1.1 - 2023-11-08
 - Fix Special offsets in `Admin.lags`
 
 ## 25.1.0 - 2023-11-07

@@ -92,15 +92,24 @@ module Admin =
             consumer.Committed(timeout)
             |> Seq.choose(fun tpo ->
                 try
-                    let watermark = consumer.QueryWatermarkOffsets(tpo.TopicPartition, timeout)
-                    let committed = tpo.Offset.Value
-                    let logEndOffset = watermark.High.Value
+                    let tp = tpo.TopicPartition
+                    let watermark = consumer.QueryWatermarkOffsets(tp, timeout)
+                    let committed =
+                        match tpo.Offset with
+                        | value when not value.IsSpecial -> value.Value
+                        | _ -> 0L
+
+                    let logEndOffset =
+                        match watermark.High with
+                        | value when not value.IsSpecial -> value.Value
+                        | _ -> 0L
+
                     let lag = logEndOffset - committed
 
                     logger.LogDebug(
                         "Committed offset for Topic {topic} Partition {partition} is {committed} out of watermark end offset {logEndOffset} Lag is: {lag}",
-                        tpo.TopicPartition.Topic,
-                        tpo.TopicPartition.Partition.Value,
+                        tp.Topic,
+                        tp.Partition.Value,
                         committed,
                         logEndOffset,
                         lag

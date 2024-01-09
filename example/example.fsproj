@@ -8,8 +8,8 @@
     <ProjectReference Include="../Kafka.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Admin.fs" />
-    <!-- <Compile Include="Consumer.fs" /> -->
+    <!-- <Compile Include="Admin.fs" /> -->
+    <Compile Include="Consumer.fs" />
     <!-- <Compile Include="Produce.fs" /> -->
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />

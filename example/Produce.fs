@@ -74,7 +74,8 @@ let main argv =
     printfn "Produce message"
     printfn "==============="
 
-    let brokerList = "kafka.service.dev1-services.consul:9092"
+    //let brokerList = "kafka.service.dev1-services.consul:9092"
+    let brokerList = Environment.GetEnvironmentVariable("RPK_BROKERS")
     let topicWithASinglePartition = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
 

@@ -79,6 +79,7 @@ module Admin =
                 GroupId = (groupId |> GroupId.value),
                 BootstrapServers = (connection.BrokerList |> BrokerList.value),
                 AutoOffsetReset = (AutoOffsetReset.Earliest |> Nullable),
+                // fsharplint:disable-next-line
                 EnableAutoCommit = false
             )
 

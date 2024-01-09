@@ -11,12 +11,14 @@ let main argv =
 
     //let brokerList = "kfall-2.dev1.services.lmc:9092"
     let brokerList = "kafka.service.dev1-services.consul:9092"
+    //let brokerList = Environment.GetEnvironmentVariable("RPK_BROKERS")
     let topic = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
     let organizationStream = "consents-intentOrganizationStream-development-v1v2"
 
     let stream = topic
-    let groupId = "consumer-group-id-v2.0.2+2.1.1-2"
+    //let groupId = "consumer-group-id-v2.0.2+2.1.1-2"
+    let groupId = "consumer-group-id-v2.3.0.A1"
 
     /// default: true
     let enableAutocommit = true

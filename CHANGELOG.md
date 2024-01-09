@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Use net8.0
+- Fix package metadata
 
 ## 25.1.1 - 2023-11-08
 - Fix Special offsets in `Admin.lags`

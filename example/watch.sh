@@ -2,12 +2,17 @@
 
 set -e
 
-export RPK_BROKERS="127.0.0.1:49254,127.0.0.1:49257,127.0.0.1:49246"
-export RPK_ADMIN_HOSTS="127.0.0.1:49253,127.0.0.1:49255,127.0.0.1:49250"
+# first run: rpk container start -n 3
+# update the brokers and admin hosts by: rpk cluster info
+
+export RPK_BROKERS="127.0.0.1:19092"
+export RPK_ADMIN_HOSTS="127.0.0.1:19644"
 rpk cluster info
 rpk cluster health
 
-rpk topic create development-local-experimental-v1
+#echo "---"
+#echo "Create topic"
+#rpk topic create development-local-experimental-v1 -p 10
 
 # Service identification
 DOMAIN=consents

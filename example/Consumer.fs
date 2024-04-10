@@ -10,8 +10,8 @@ let main argv =
     printfn "Example\n=======\n"
 
     //let brokerList = "kfall-2.dev1.services.lmc:9092"
-    let brokerList = "kafka.service.dev1-services.consul:9092"
-    //let brokerList = Environment.GetEnvironmentVariable("RPK_BROKERS")
+    //let brokerList = "kafka.service.dev1-services.consul:9092"
+    let brokerList = Environment.GetEnvironmentVariable("RPK_BROKERS")
     let topic = "development-local-experimental-v1"
     let topicWithPartitions = "development-local-experimentalWithPartition-v1"
     let organizationStream = "consents-intentOrganizationStream-development-v1v2"
@@ -19,6 +19,8 @@ let main argv =
     let stream = topic
     //let groupId = "consumer-group-id-v2.0.2+2.1.1-2"
     let groupId = "consumer-group-id-v2.3.0.A1"
+    let groupId = "consumer-2024-04-10--01" // with lag
+    let groupId = "consumer-2024-04-10--02" // without lag
 
     /// default: true
     let enableAutocommit = true
@@ -69,7 +71,7 @@ let main argv =
                     m.Message.Value.Length
                 )
 
-                System.Threading.Thread.Sleep 1000
+                //System.Threading.Thread.Sleep 1000
 
                 if not enableAutocommit then
                     if allowSkip && System.Random().Next(0, 6) >= 4 then

@@ -62,7 +62,7 @@ module ProduceMultipleMessagesWithOwnTraceForEachMessage =
 
         let produce = produce producer
 
-        for i in 1 .. 10 do
+        for i in 1 .. 69 do
             let id = sprintf "%05i" i
             use eventTrace = Trace.Active.start $"Event {i}"
 

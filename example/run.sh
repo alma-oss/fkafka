@@ -2,8 +2,8 @@
 
 set -e
 
-export RPK_BROKERS="127.0.0.1:49254,127.0.0.1:49257,127.0.0.1:49246"
-export RPK_ADMIN_HOSTS="127.0.0.1:49253,127.0.0.1:49255,127.0.0.1:49250"
+export RPK_BROKERS="127.0.0.1:19092"
+export RPK_ADMIN_HOSTS="127.0.0.1:19644"
 rpk cluster info
 rpk cluster health
 

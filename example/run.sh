@@ -30,4 +30,4 @@ export TRACING_LOG_TO="$LOG_TO"
 export TRACING_LOG_META="$LOGGER_TAGS"
 export TRACING_LOG_LEVEL="$VERBOSITY"
 
-dotnet run
+dotnet run -- consume

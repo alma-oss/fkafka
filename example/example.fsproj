@@ -1,16 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Kafka.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Admin.fs" />
+    <Compile Include="Example.fs" />
+    <!-- <Compile Include="Admin.fs" /> -->
     <!-- <Compile Include="Consumer.fs" /> -->
     <!-- <Compile Include="Produce.fs" /> -->
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MF.ConsoleApplication" Version="7.0.0" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

@@ -8,9 +8,13 @@
     <ProjectReference Include="../Kafka.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Admin.fs" />
+    <Compile Include="Example.fs" />
+    <!-- <Compile Include="Admin.fs" /> -->
     <!-- <Compile Include="Consumer.fs" /> -->
     <!-- <Compile Include="Produce.fs" /> -->
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MF.ConsoleApplication" Version="7.0.0" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

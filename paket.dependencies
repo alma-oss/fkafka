@@ -3,15 +3,6 @@ framework: net9.0
 source https://api.nuget.org/v3/index.json
 nuget FSharp.Core ~> 9.0
 nuget FSharp.Data ~> 6.0
-# There is no issue for it, but since version 2.1.0, first 1 (or 2) consumed messages are not connected correctly.
-# After those, everything works fine.
-#
-# Error:
-# Confluent.Kafka.ConsumeException: Subscribed topic not available: {topic}: Broker: Unknown topic or partition
-#   at Confluent.Kafka.Consumer`2.Consume(Int32 millisecondsTimeout)
-#   at Confluent.Kafka.Consumer`2.Consume(CancellationToken cancellationToken)
-#   at Alma.Kafka.Consumer.Consume.consume(Consumer consumer) in /Users/petr.chromec/fsharp/fkafka/src/Consumer.fs:line 332
-#
 nuget Confluent.Kafka ~> 2.8
 nuget librdkafka.redist ~> 2.8
 nuget FSharp.Control.AsyncSeq ~> 3.1

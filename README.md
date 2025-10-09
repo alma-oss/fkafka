@@ -85,6 +85,63 @@ let totalLag =
 printfn "total lag: %A" totalLag
 ```
 
+## Using external checkpoint for storing offsets
+
+You can use external storage (like a database, Redis, etc.) to store Kafka consumer offsets instead of relying on Kafka's built-in offset management. This is useful for ensuring exactly-once processing or when you need more control over offset management.
+
+### Configuration
+
+Add a `GetCheckpoint` function to your consumer configuration:
+
+```fs
+open Alma.Kafka
+
+// Define your checkpoint retrieval function
+let getCheckpoint (topicPartition: TopicPartition): AsyncResult<TopicPartitionOffset, exn> = asyncResult {
+    let! offset = yourExternalStorage.GetOffset(topicPartition)
+
+    return {
+        TopicPartition = topicPartition
+        Offset = offset
+    }
+}
+
+let connection = {
+    BrokerList = BrokerList "127.0.0.1:9092"
+    Topic = StreamName "my-topic"
+}
+
+let configuration =
+    { ConsumerConfiguration.createWithConnection connection (GroupId.Id "my-group") with
+        GetCheckpoint = Some getCheckpoint  // Add your checkpoint function
+    }
+
+// Use the consumer as normal
+Consumer.consume configuration (TracedMessage.message >> RawEvent.Parse)
+|> Seq.iter (fun event ->
+    // Process your event
+    printfn "Event: %A" event
+
+    // Save the offset to your external storage after processing
+    // yourExternalStorage.SaveOffset(event.TopicPartition, event.Offset)
+)
+```
+
+### How it works
+
+1. **When partitions are assigned**: The consumer calls your `GetCheckpoint` function for each partition
+2. **If checkpoint exists**: Consumer resumes from the stored offset
+3. **If no checkpoint**: Consumer starts from the beginning (due to `AutoOffsetReset.Earliest`)
+4. **Offset management**: You're responsible for saving offsets to your external storage after successfully processing messages
+
+### Important notes
+
+- The `GetCheckpoint` function should return `Offset = None` when no checkpoint exists, not throw an exception
+- Offsets should be saved to external storage **after** successfully processing each message, or after batch
+- The consumer uses `AutoOffsetReset.Earliest` by default, so missing checkpoints start from the beginning
+- Make sure your external storage operations are robust and handle failures appropriately
+
+
 ---
 
 ## Release

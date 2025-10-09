@@ -1,6 +1,7 @@
 namespace Alma.Kafka
 
 open Alma.ServiceIdentification
+open Alma.ErrorHandling
 open Alma.Metrics.ServiceStatus
 
 //
@@ -151,6 +152,47 @@ type ConnectionConfiguration = {
     BrokerList: BrokerList
     Topic: StreamName
 }
+
+//
+// Checkpoint
+//
+
+type TopicPartition = {
+    Topic: StreamName
+    Partition: int
+}
+
+type TopicPartitionOffset = {
+    TopicPartition: TopicPartition
+    Offset: Offset option
+}
+
+and Offset = Offset of int64
+
+[<RequireQualifiedAccess>]
+module internal Offset =
+    let toKafka (Offset offset) = Confluent.Kafka.Offset offset
+
+[<RequireQualifiedAccess>]
+module internal TopicPartition =
+    let ofKafka (tp: Confluent.Kafka.TopicPartition) =
+        if tp.Partition.IsSpecial then None
+        else
+            Some {
+                Topic = tp.Topic |> StreamName
+                Partition = tp.Partition.Value
+            }
+
+[<RequireQualifiedAccess>]
+module internal TopicPartitionOffset =
+    let toKafka (tp: TopicPartitionOffset) =
+        Confluent.Kafka.TopicPartitionOffset(
+            tp.TopicPartition.Topic |> StreamName.value,
+            tp.TopicPartition.Partition,
+            tp.Offset |> Option.map Offset.toKafka |> Option.defaultValue Confluent.Kafka.Offset.Unset
+        )
+
+type GetCheckpoint = TopicPartition -> AsyncResult<TopicPartitionOffset, exn>
 
 //
 // Utilities

@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- [**BC**] Change `GetCheckpoint` to also provide/require `GroupId`
 
 ## 27.2.0 - 2025-10-10
 - Add logging for custom checkpoint

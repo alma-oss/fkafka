@@ -192,7 +192,7 @@ module internal TopicPartitionOffset =
             tp.Offset |> Option.map Offset.toKafka |> Option.defaultValue Confluent.Kafka.Offset.Unset
         )
 
-type GetCheckpoint = TopicPartition -> AsyncResult<TopicPartitionOffset, exn>
+type GetCheckpoint = GroupId -> TopicPartition -> AsyncResult<TopicPartitionOffset, exn>
 
 //
 // Utilities

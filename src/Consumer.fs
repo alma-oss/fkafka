@@ -31,6 +31,9 @@ type ConsumerConfiguration = {
 
     /// Default: Automatically (same as Kafka.EnableAutocommit: true)
     CommitMessage: CommitMessage
+
+    /// Custom checkpoint, when using external storage for offsets
+    GetCheckpoint: GetCheckpoint option
 }
 
 [<RequireQualifiedAccess>]
@@ -46,6 +49,7 @@ module ConsumerConfiguration =
             Cancellation = None
             CountLag = false
             CommitMessage = CommitMessage.Automatically
+            GetCheckpoint = None
         }
 
     let createWithDefaults brokerList topic =
@@ -183,6 +187,33 @@ module Consumer =
         Message: 'Message
     }
 
+    type private OnPartitionsAssigned = IConsumer<KafkaMessageKey,KafkaMessageValue> -> Collections.Generic.List<TopicPartition> -> Collections.Generic.IEnumerable<TopicPartitionOffset>
+
+    let private partitionOffsetHandler (getOffset: GetCheckpoint) (logger: ILogger option): OnPartitionsAssigned = fun c partitions ->
+        partitions
+        |> Seq.toList
+        |> List.choose (
+            TopicPartition.ofKafka
+            >> Option.map (
+                getOffset
+                >> AsyncResult.retryWithExponential
+                    (fun message -> logger |> Option.iter (fun logger -> logger.LogInformation message))
+                    1000
+                    10
+            )
+        )
+        |> AsyncResult.ofParallelAsyncResults id
+        |> Async.RunSynchronously
+        |> function
+            | Ok offsets ->
+                offsets
+                |> List.map TopicPartitionOffset.toKafka
+                |> List.toSeq
+
+            | Error e ->
+                logger |> Option.iter (fun logger -> logger.LogCritical("Could not get offsets for partitions: {error}", e))
+                e |> List.head |> raise
+
     [<RequireQualifiedAccess>]
     module private Consumer =
         let private createDefaultConfig (BrokerList brokerList) groupId commitMessage =
@@ -202,7 +233,15 @@ module Consumer =
         let private createConsumer configuration (config: ConsumerConfig): Consumer =
             let topicValue = configuration.Connection.Topic |> StreamName.value
 
-            let consumer = ConsumerBuilder(config).Build()
+            let consumer =
+                let builder =
+                    configuration.GetCheckpoint
+                    |> Option.fold (fun (builder: ConsumerBuilder<_, _>) getCheckpoint ->
+                        builder.SetPartitionsAssignedHandler(partitionOffsetHandler getCheckpoint configuration.Logger)
+                    ) (ConsumerBuilder config)
+
+                builder.Build()
+
             topicValue |> consumer.Subscribe
 
             {

@@ -2,6 +2,14 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update dependencies
+    - Use `Confluent.Kafka and librdkafka` 2.12
+- Add types
+    - `TopicPartition`
+    - `TopicPartitionOffset`
+    - `Offset`
+    - `GetCheckpoint`
+- Add `GetCheckpoint` to `ConsumerConfiguration`
 
 ## 27.0.0 - 2025-03-17
 - [**BC**] Use net9.0

@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 27.1.0 - 2025-10-10
 - Update dependencies
     - Use `Confluent.Kafka and librdkafka` 2.12
 - Add types

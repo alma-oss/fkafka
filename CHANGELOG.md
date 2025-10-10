@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Update dependencies
+    - Use `Confluent.Kafka and librdkafka` 2.12
 - Add types
     - `TopicPartition`
     - `TopicPartitionOffset`

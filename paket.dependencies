@@ -3,8 +3,8 @@ framework: net9.0
 source https://api.nuget.org/v3/index.json
 nuget FSharp.Core ~> 9.0
 nuget FSharp.Data ~> 6.0
-nuget Confluent.Kafka ~> 2.8
-nuget librdkafka.redist ~> 2.8
+nuget Confluent.Kafka ~> 2.12
+nuget librdkafka.redist ~> 2.12
 nuget FSharp.Control.AsyncSeq ~> 3.1
 nuget Microsoft.Extensions.Logging ~> 9.0
 

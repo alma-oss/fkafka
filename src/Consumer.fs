@@ -189,7 +189,7 @@ module Consumer =
 
     type private OnPartitionsAssigned = IConsumer<KafkaMessageKey,KafkaMessageValue> -> Collections.Generic.List<TopicPartition> -> Collections.Generic.IEnumerable<TopicPartitionOffset>
 
-    let private partitionOffsetHandler (getOffset: GetCheckpoint) (logger: ILogger option): OnPartitionsAssigned = fun c partitions ->
+    let private partitionOffsetHandler getOffset (logger: ILogger option): OnPartitionsAssigned = fun c partitions ->
         logger |> Option.iter (fun logger -> logger.LogDebug "Getting checkpoint offsets for partitions")
         partitions
         |> Seq.toList
@@ -239,7 +239,7 @@ module Consumer =
                     configuration.GetCheckpoint
                     |> Option.fold (fun (builder: ConsumerBuilder<_, _>) getCheckpoint ->
                         configuration.Logger |> Option.iter (fun logger -> logger.LogInformation "Using custom GetCheckpoint for partitions assignment")
-                        builder.SetPartitionsAssignedHandler(partitionOffsetHandler getCheckpoint configuration.Logger)
+                        builder.SetPartitionsAssignedHandler(partitionOffsetHandler (getCheckpoint configuration.GroupId) configuration.Logger)
                     ) (ConsumerBuilder config)
 
                 builder.Build()

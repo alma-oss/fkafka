@@ -61,11 +61,12 @@ module ProduceMultipleMessagesWithOwnTraceForEachMessage =
 
         let produce = produce output producer
 
-        for i in 1 .. 69 do
+        for i in 1 .. 105 do
             let id = sprintf "%05i" i
             use eventTrace = Trace.Active.start $"Event {i}"
+            let key = i % 10
 
-            MessageToProduce.create (MessageKey.Simple $"id_{id}", $"event-{id}-{now()}")
+            MessageToProduce.create (MessageKey.Simple $"key_{key}", $"event[P:{key}]-{id}-{now()}")
             |> produce eventTrace
 
 [<EntryPoint>]

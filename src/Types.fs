@@ -172,6 +172,11 @@ and Offset = Offset of int64
 [<RequireQualifiedAccess>]
 module internal Offset =
     let toKafka (Offset offset) = Confluent.Kafka.Offset offset
+    let fromKafka (offset: Confluent.Kafka.Offset) =
+        if offset.IsSpecial then None
+        else Some (Offset offset.Value)
+
+    let beginning () = Offset Confluent.Kafka.Offset.Beginning.Value
 
 [<RequireQualifiedAccess>]
 module internal TopicPartition =

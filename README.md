@@ -131,15 +131,16 @@ Consumer.consume configuration (TracedMessage.message >> RawEvent.Parse)
 
 1. **When partitions are assigned**: The consumer calls your `GetCheckpoint` function for each partition
 2. **If checkpoint exists**: Consumer resumes from the stored offset
-3. **If no checkpoint**: Consumer starts from the beginning (due to `AutoOffsetReset.Earliest`)
+3. **If no checkpoint**: Consumer starts from the earliest available offset for that partition (not from Kafka's stored group offset)
 4. **Offset management**: You're responsible for saving offsets to your external storage after successfully processing messages
 
 ### Important notes
 
+- **No checkpoint = earliest offset**: When no external checkpoint exists, consumer starts from the earliest available message in the partition
 - The `GetCheckpoint` function should return `Offset = None` when no checkpoint exists, not throw an exception
 - Offsets should be saved to external storage **after** successfully processing each message, or after batch
-- The consumer uses `AutoOffsetReset.Earliest` by default, so missing checkpoints start from the beginning
 - Make sure your external storage operations are robust and handle failures appropriately
+- **Critical**: Save external checkpoint and commit Kafka offset atomically to avoid message loss or duplication
 
 
 ---

@@ -2,6 +2,7 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+- Use earliest offset in checkpoint if there is no external checkpoint stored
 
 ## 28.0.0 - 2025-10-19
 - [**BC**] Change `GetCheckpoint` to also provide/require `GroupId`

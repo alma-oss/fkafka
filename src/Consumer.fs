@@ -189,31 +189,45 @@ module Consumer =
 
     type private OnPartitionsAssigned = IConsumer<KafkaMessageKey,KafkaMessageValue> -> Collections.Generic.List<TopicPartition> -> Collections.Generic.IEnumerable<TopicPartitionOffset>
 
-    let private partitionOffsetHandler getOffset (logger: ILogger option): OnPartitionsAssigned = fun c partitions ->
+    let private partitionOffsetHandler (getOffset: GetCheckpoint) (groupId: GroupId) (logger: ILogger option): OnPartitionsAssigned = fun consumer partitions ->
         logger |> Option.iter (fun logger -> logger.LogDebug "Getting checkpoint offsets for partitions")
+
         partitions
         |> Seq.toList
-        |> List.choose (
-            TopicPartition.ofKafka
-            >> Option.map (
-                getOffset
-                >> AsyncResult.retryWithExponential
-                    (fun message -> logger |> Option.iter (fun logger -> logger.LogInformation message))
-                    1000
-                    10
+        |> List.choose (fun kafkaPartition ->
+            TopicPartition.ofKafka kafkaPartition
+            |> Option.map (fun topicPartition ->
+                // Try to get checkpoint from external storage
+                let getCheckpointResult =
+                    getOffset groupId topicPartition
+                    |> AsyncResult.retryWithExponential
+                        (fun message -> logger |> Option.iter (fun logger -> logger.LogInformation message))
+                        1000
+                        10
+                    |> Async.RunSynchronously
+
+                match getCheckpointResult with
+                | Error e ->
+                    logger |> Option.iter (fun logger -> logger.LogCritical("Could not get offsets for partitions: {error}", e))
+                    e |> raise
+                | Ok ({ Offset = Some _ } as topicPartitionOffset) -> topicPartitionOffset
+                | _ ->
+                    // No external checkpoint found - use earliest available offset for this partition
+                    let watermark = consumer.GetWatermarkOffsets kafkaPartition
+                    let earliestOffset = Offset.fromKafka watermark.Low |> Option.defaultWith Offset.beginning
+
+                    logger |> Option.iter (fun logger ->
+                        logger.LogInformation("No checkpoint found for partition {partition}, starting from earliest offset {offset}", kafkaPartition.Partition, earliestOffset)
+                    )
+
+                    {
+                        TopicPartition = topicPartition
+                        Offset = Some earliestOffset
+                    }
             )
         )
-        |> AsyncResult.ofParallelAsyncResults id
-        |> Async.RunSynchronously
-        |> function
-            | Ok offsets ->
-                offsets
-                |> List.map TopicPartitionOffset.toKafka
-                |> List.toSeq
-
-            | Error e ->
-                logger |> Option.iter (fun logger -> logger.LogCritical("Could not get offsets for partitions: {error}", e))
-                e |> List.head |> raise
+        |> List.map TopicPartitionOffset.toKafka
+        |> List.toSeq
 
     [<RequireQualifiedAccess>]
     module private Consumer =
@@ -239,7 +253,7 @@ module Consumer =
                     configuration.GetCheckpoint
                     |> Option.fold (fun (builder: ConsumerBuilder<_, _>) getCheckpoint ->
                         configuration.Logger |> Option.iter (fun logger -> logger.LogInformation "Using custom GetCheckpoint for partitions assignment")
-                        builder.SetPartitionsAssignedHandler(partitionOffsetHandler (getCheckpoint configuration.GroupId) configuration.Logger)
+                        builder.SetPartitionsAssignedHandler(partitionOffsetHandler getCheckpoint configuration.GroupId configuration.Logger)
                     ) (ConsumerBuilder config)
 
                 builder.Build()

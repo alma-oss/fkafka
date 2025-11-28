@@ -2,7 +2,7 @@ namespace Alma.Kafka
 
 open System
 open Alma.ServiceIdentification
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 
 //
 // Events

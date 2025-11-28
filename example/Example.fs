@@ -1,7 +1,7 @@
 open System
 open Microsoft.Extensions.Logging
 open MF.ConsoleApplication
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open Alma.Kafka
 open Alma.Logging
 open Alma.Tracing

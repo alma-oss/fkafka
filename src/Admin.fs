@@ -4,7 +4,7 @@ module Admin =
     open System
     open Confluent.Kafka
     open Microsoft.Extensions.Logging
-    open Alma.ErrorHandling
+    open Feather.ErrorHandling
 
     type AdminClient = IAdminClient
 

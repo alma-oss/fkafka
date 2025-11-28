@@ -3,7 +3,7 @@
 open System
 open Alma.Kafka
 open Alma.Logging
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open Microsoft.Extensions.Logging
 
 (* type Message = {

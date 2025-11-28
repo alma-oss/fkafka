@@ -1,7 +1,7 @@
 namespace Alma.Kafka
 
 open Alma.ServiceIdentification
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 open Alma.Metrics.ServiceStatus
 
 //

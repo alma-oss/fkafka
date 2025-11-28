@@ -5,7 +5,7 @@ open Microsoft.Extensions.Logging
 open Alma.Kafka
 open Alma.Kafka.Admin
 open Alma.Logging
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 
 [<EntryPoint>]
 let main argv =

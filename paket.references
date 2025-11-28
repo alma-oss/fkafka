@@ -4,7 +4,7 @@ Confluent.Kafka
 librdkafka.redist
 FSharp.Control.AsyncSeq
 Microsoft.Extensions.Logging
-Alma.ErrorHandling
+Feather.ErrorHandling
 Alma.Metrics
 Alma.Serializer
 Alma.ServiceIdentification

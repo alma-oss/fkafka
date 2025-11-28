@@ -7,7 +7,7 @@ open Microsoft.Extensions.Logging
 
 open Alma.Metrics.ServiceStatus
 open Alma.Tracing
-open Alma.ErrorHandling
+open Feather.ErrorHandling
 
 [<RequireQualifiedAccess>]
 type FailOnNotCommittedMessage =

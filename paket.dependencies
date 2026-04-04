@@ -5,7 +5,7 @@ nuget FSharp.Core ~> 10.0
 nuget FSharp.Data ~> 6.0
 nuget Confluent.Kafka ~> 2.12
 nuget librdkafka.redist ~> 2.12
-nuget FSharp.Control.AsyncSeq ~> 3.1
+nuget FSharp.Control.AsyncSeq ~> 4.0
 nuget Microsoft.Extensions.Logging ~> 10.0
 
 nuget Feather.ErrorHandling ~> 2.0
@@ -15,8 +15,11 @@ nuget Alma.ServiceIdentification ~> 11.0
 nuget Alma.State ~> 11.0
 nuget Alma.Tracing ~> 13.0
 
-nuget Expecto
-nuget YoloDev.Expecto.TestSdk
+// [ TESTS GROUP ]
+group Tests
+    source https://api.nuget.org/v3/index.json
+    nuget Expecto
+    nuget YoloDev.Expecto.TestSdk
 
 // [ FAKE GROUP ]
 group Build

@@ -1,2 +1,3 @@
-Expecto
-YoloDev.Expecto.TestSdk
+group Tests
+  Expecto
+  YoloDev.Expecto.TestSdk

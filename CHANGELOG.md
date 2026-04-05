@@ -2,6 +2,8 @@
 
 <!-- There is always Unreleased section on the top. Subsections (Add, Changed, Fix, Removed) should be Add as needed. -->
 ## Unreleased
+
+## 30.1.0 - 2026-04-05
 - Update dependencies
     - `YoloDev.Expecto.TestSdk` 4
 - Move tests dependencies to Tests group

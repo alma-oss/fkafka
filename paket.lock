@@ -39,15 +39,13 @@ NUGET
       OpenTelemetry.Instrumentation.Http (>= 1.15 < 2.0)
     Confluent.Kafka (2.13)
       librdkafka.redist (>= 2.13)
-    Expecto (10.2.3)
-      FSharp.Core (>= 7.0.200)
-      Mono.Cecil (>= 0.11.4 < 1.0)
     Feather.ErrorHandling (2.0)
       FSharp.Core (>= 10.0.100 < 11.0)
-    FSharp.Control.AsyncSeq (3.2.1)
+    FSharp.Control.AsyncSeq (4.12)
       FSharp.Core (>= 4.7.2)
-      Microsoft.Bcl.AsyncInterfaces (>= 5.0)
-    FSharp.Core (10.0.102)
+      Microsoft.Bcl.AsyncInterfaces (>= 10.0.5)
+      System.Threading.Channels (>= 10.0.5)
+    FSharp.Core (10.1.201)
     FSharp.Data (6.6)
       FSharp.Core (>= 6.0.1)
       FSharp.Data.Csv.Core (>= 6.6)
@@ -84,8 +82,6 @@ NUGET
       FSharp.Data.Json.Core (>= 6.6)
       FSharp.Data.Runtime.Utilities (>= 6.6)
     librdkafka.redist (2.13)
-    Microsoft.ApplicationInsights (2.23)
-      System.Diagnostics.DiagnosticSource (>= 5.0)
     Microsoft.AspNetCore.Http (2.3.9)
       Microsoft.AspNetCore.Http.Abstractions (>= 2.3)
       Microsoft.AspNetCore.WebUtilities (>= 2.3)
@@ -100,7 +96,7 @@ NUGET
       System.IO.Pipelines (>= 5.0.2)
     Microsoft.AspNetCore.WebUtilities (10.0.2)
       Microsoft.Net.Http.Headers (>= 10.0.2)
-    Microsoft.Bcl.AsyncInterfaces (10.0.2)
+    Microsoft.Bcl.AsyncInterfaces (10.0.5)
     Microsoft.Extensions.Configuration (10.0.2)
       Microsoft.Extensions.Configuration.Abstractions (>= 10.0.2)
       Microsoft.Extensions.Primitives (>= 10.0.2)
@@ -149,24 +145,6 @@ NUGET
     Microsoft.Extensions.Primitives (10.0.2)
     Microsoft.Net.Http.Headers (10.0.2)
       Microsoft.Extensions.Primitives (>= 10.0.2)
-    Microsoft.Testing.Extensions.Telemetry (2.0.2)
-      Microsoft.ApplicationInsights (>= 2.23)
-      Microsoft.Testing.Platform (>= 2.0.2)
-    Microsoft.Testing.Extensions.TrxReport.Abstractions (2.0.2)
-      Microsoft.Testing.Platform (>= 2.0.2)
-    Microsoft.Testing.Extensions.VSTestBridge (2.0.2)
-      Microsoft.Testing.Extensions.Telemetry (>= 2.0.2)
-      Microsoft.Testing.Extensions.TrxReport.Abstractions (>= 2.0.2)
-      Microsoft.Testing.Platform (>= 2.0.2)
-      Microsoft.TestPlatform.AdapterUtilities (>= 18.0.1)
-      Microsoft.TestPlatform.ObjectModel (>= 18.0.1)
-    Microsoft.Testing.Platform (2.0.2)
-    Microsoft.Testing.Platform.MSBuild (2.0.2)
-      Microsoft.Testing.Platform (>= 2.0.2)
-    Microsoft.TestPlatform.AdapterUtilities (18.0.1)
-    Microsoft.TestPlatform.ObjectModel (18.0.1)
-      System.Reflection.Metadata (>= 8.0)
-    Mono.Cecil (0.11.6)
     Newtonsoft.Json (13.0.4)
     OpenTelemetry (1.15)
       Microsoft.Extensions.Diagnostics.Abstractions (>= 10.0)
@@ -193,16 +171,10 @@ NUGET
       Serilog (>= 4.2)
     Serilog.Sinks.Console (6.1.1)
       Serilog (>= 4.0)
-    System.Diagnostics.DiagnosticSource (10.0.2)
     System.IO.Pipelines (10.0.2)
-    System.Reflection.Metadata (10.0.2)
     System.Text.Encodings.Web (10.0.2)
+    System.Threading.Channels (10.0.5)
     System.Threading.Tasks.Extensions (4.6.3)
-    YoloDev.Expecto.TestSdk (0.15.5)
-      Expecto (>= 10.2.2 < 11.0)
-      FSharp.Core (>= 7.0.200)
-      Microsoft.Testing.Extensions.VSTestBridge (>= 1.9)
-      Microsoft.Testing.Platform.MSBuild (>= 1.9)
 
 GROUP Build
 STORAGE: NONE
@@ -433,3 +405,136 @@ NUGET
     System.Threading.Tasks.Extensions (4.6.3) - restriction: || (>= net472) (&& (< net6.0) (>= netstandard2.0)) (&& (>= netstandard2.0) (>= uap10.1))
       System.Runtime.CompilerServices.Unsafe (>= 6.1.2) - restriction: || (>= net462) (&& (< netcoreapp2.1) (>= netstandard2.0) (< netstandard2.1))
     System.ValueTuple (4.6.1) - restriction: || (&& (>= net45) (>= netstandard2.0)) (>= net472)
+
+GROUP Tests
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    Azure.Core (1.52) - restriction: >= net8.0
+      Microsoft.Bcl.AsyncInterfaces (>= 10.0.3) - restriction: || (>= net462) (>= netstandard2.0)
+      System.ClientModel (>= 1.10) - restriction: || (>= net462) (>= netstandard2.0)
+      System.Diagnostics.DiagnosticSource (>= 10.0.3) - restriction: || (&& (< net10.0) (>= net8.0)) (>= net462) (&& (< net8.0) (>= netstandard2.0))
+      System.Memory.Data (>= 10.0.3) - restriction: || (>= net462) (>= netstandard2.0)
+      System.Text.Encodings.Web (>= 10.0.3) - restriction: || (&& (< net10.0) (>= net8.0)) (>= net462) (&& (< net8.0) (>= netstandard2.0))
+      System.Text.Json (>= 10.0.3) - restriction: || (&& (< net10.0) (>= net8.0)) (>= net462) (&& (< net8.0) (>= netstandard2.0))
+    Azure.Monitor.OpenTelemetry.Exporter (1.7) - restriction: >= net8.0
+      Azure.Core (>= 1.52) - restriction: >= netstandard2.0
+      OpenTelemetry.Extensions.Hosting (>= 1.15.1) - restriction: >= netstandard2.0
+      OpenTelemetry.PersistentStorage.FileSystem (>= 1.0.2) - restriction: >= netstandard2.0
+    Expecto (10.2.3)
+      FSharp.Core (>= 7.0.200) - restriction: >= net6.0
+      Mono.Cecil (>= 0.11.4 < 1.0) - restriction: >= net6.0
+    FSharp.Core (10.1.201) - restriction: >= net6.0
+    Microsoft.ApplicationInsights (3.1) - restriction: >= net8.0
+      Azure.Monitor.OpenTelemetry.Exporter (>= 1.7) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Bcl.AsyncInterfaces (10.0.5) - restriction: >= net8.0
+    Microsoft.Extensions.Configuration (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.Abstractions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Primitives (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Configuration.Binder (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.DependencyInjection (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.DependencyInjection.Abstractions (10.0.5) - restriction: >= net8.0
+    Microsoft.Extensions.Diagnostics.Abstractions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      System.Diagnostics.DiagnosticSource (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    Microsoft.Extensions.FileProviders.Abstractions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Primitives (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Hosting.Abstractions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Diagnostics.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.FileProviders.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Logging (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Logging.Abstractions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      System.Diagnostics.DiagnosticSource (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    Microsoft.Extensions.Logging.Configuration (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Binder (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Logging (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Logging.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Options.ConfigurationExtensions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Options (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Options.ConfigurationExtensions (10.0.5) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Configuration.Binder (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Options (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+      Microsoft.Extensions.Primitives (>= 10.0.5) - restriction: || (>= net462) (>= netstandard2.0)
+    Microsoft.Extensions.Primitives (10.0.5) - restriction: >= net8.0
+    Microsoft.Testing.Extensions.Telemetry (2.1) - restriction: >= net8.0
+      Microsoft.ApplicationInsights (>= 2.23) - restriction: >= netstandard2.0
+      Microsoft.Testing.Platform (>= 2.1) - restriction: >= netstandard2.0
+    Microsoft.Testing.Extensions.TrxReport.Abstractions (2.1) - restriction: >= net8.0
+      Microsoft.Testing.Platform (>= 2.1) - restriction: >= netstandard2.0
+    Microsoft.Testing.Extensions.VSTestBridge (2.1) - restriction: >= net8.0
+      Microsoft.Testing.Extensions.Telemetry (>= 2.1) - restriction: >= netstandard2.0
+      Microsoft.Testing.Extensions.TrxReport.Abstractions (>= 2.1) - restriction: >= netstandard2.0
+      Microsoft.Testing.Platform (>= 2.1) - restriction: >= netstandard2.0
+      Microsoft.TestPlatform.ObjectModel (>= 18.0.1) - restriction: >= netstandard2.0
+    Microsoft.Testing.Platform (2.1) - restriction: >= net8.0
+    Microsoft.Testing.Platform.MSBuild (2.1) - restriction: >= net8.0
+      Microsoft.Testing.Platform (>= 2.1) - restriction: >= netstandard2.0
+    Microsoft.TestPlatform.ObjectModel (18.3) - restriction: >= net8.0
+      System.Reflection.Metadata (>= 8.0) - restriction: || (>= net462) (>= netstandard2.0)
+    Mono.Cecil (0.11.6) - restriction: >= net6.0
+    OpenTelemetry (1.15.1) - restriction: >= net8.0
+      Microsoft.Extensions.Diagnostics.Abstractions (>= 8.0) - restriction: && (>= net8.0) (< net9.0)
+      Microsoft.Extensions.Diagnostics.Abstractions (>= 9.0) - restriction: && (< net10.0) (>= net9.0)
+      Microsoft.Extensions.Diagnostics.Abstractions (>= 10.0) - restriction: || (>= net10.0) (>= net462) (&& (< net8.0) (>= netstandard2.1)) (&& (>= netstandard2.0) (< netstandard2.1))
+      Microsoft.Extensions.Logging.Configuration (>= 8.0) - restriction: && (>= net8.0) (< net9.0)
+      Microsoft.Extensions.Logging.Configuration (>= 9.0) - restriction: && (< net10.0) (>= net9.0)
+      Microsoft.Extensions.Logging.Configuration (>= 10.0) - restriction: || (>= net10.0) (>= net462) (&& (< net8.0) (>= netstandard2.1)) (&& (>= netstandard2.0) (< netstandard2.1))
+      OpenTelemetry.Api.ProviderBuilderExtensions (>= 1.15.1) - restriction: || (>= net462) (>= netstandard2.0)
+    OpenTelemetry.Api (1.15.1) - restriction: >= net8.0
+      System.Diagnostics.DiagnosticSource (>= 10.0) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    OpenTelemetry.Api.ProviderBuilderExtensions (1.15.1) - restriction: >= net8.0
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 8.0) - restriction: && (>= net8.0) (< net9.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 9.0) - restriction: && (< net10.0) (>= net9.0)
+      Microsoft.Extensions.DependencyInjection.Abstractions (>= 10.0) - restriction: || (>= net10.0) (>= net462) (&& (< net8.0) (>= netstandard2.0))
+      OpenTelemetry.Api (>= 1.15.1) - restriction: || (>= net462) (>= netstandard2.0)
+    OpenTelemetry.Extensions.Hosting (1.15.1) - restriction: >= net8.0
+      Microsoft.Extensions.Hosting.Abstractions (>= 8.0) - restriction: && (>= net8.0) (< net9.0)
+      Microsoft.Extensions.Hosting.Abstractions (>= 9.0) - restriction: && (< net10.0) (>= net9.0)
+      Microsoft.Extensions.Hosting.Abstractions (>= 10.0) - restriction: || (>= net10.0) (>= net462) (&& (< net8.0) (>= netstandard2.0))
+      OpenTelemetry (>= 1.15.1) - restriction: || (>= net462) (>= netstandard2.0)
+    OpenTelemetry.PersistentStorage.Abstractions (1.0.2) - restriction: >= net8.0
+    OpenTelemetry.PersistentStorage.FileSystem (1.0.2) - restriction: >= net8.0
+      OpenTelemetry.PersistentStorage.Abstractions (>= 1.0.2) - restriction: || (>= net462) (>= netstandard2.0)
+    System.ClientModel (1.10) - restriction: >= net8.0
+      Microsoft.Extensions.Configuration.Abstractions (>= 10.0.3) - restriction: >= netstandard2.0
+      Microsoft.Extensions.Hosting.Abstractions (>= 10.0.3) - restriction: >= netstandard2.0
+      Microsoft.Extensions.Logging.Abstractions (>= 10.0.3) - restriction: >= netstandard2.0
+      System.Diagnostics.DiagnosticSource (>= 10.0.3) - restriction: || (&& (< net10.0) (>= net9.0)) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+      System.Memory.Data (>= 10.0.3) - restriction: >= netstandard2.0
+      System.Text.Json (>= 10.0.3) - restriction: || (&& (< net10.0) (>= net9.0)) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    System.Collections.Immutable (10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (&& (>= net462) (>= net8.0)) (&& (>= net8.0) (< net9.0))
+    System.Diagnostics.DiagnosticSource (10.0.5) - restriction: || (&& (< net10.0) (>= net8.0)) (&& (< net10.0) (>= net9.0)) (&& (>= net462) (>= net8.0)) (&& (>= net8.0) (< net9.0))
+    System.IO.Pipelines (10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (&& (>= net462) (>= net8.0)) (&& (>= net462) (>= net9.0)) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= net9.0))
+    System.Memory.Data (10.0.5) - restriction: >= net8.0
+      System.Text.Json (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    System.Reflection.Metadata (10.0.5) - restriction: >= net8.0
+      System.Collections.Immutable (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    System.Text.Encodings.Web (10.0.5) - restriction: || (&& (< net10.0) (>= net8.0)) (&& (< net10.0) (>= net9.0)) (&& (>= net462) (>= net8.0)) (&& (>= net462) (>= net9.0)) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= net9.0))
+    System.Text.Json (10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (&& (>= net462) (>= net8.0)) (&& (>= net8.0) (< net9.0))
+      System.IO.Pipelines (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+      System.Text.Encodings.Web (>= 10.0.5) - restriction: || (&& (< net10.0) (>= net9.0)) (>= net462) (&& (>= net8.0) (< net9.0)) (&& (< net8.0) (>= netstandard2.0))
+    YoloDev.Expecto.TestSdk (0.15.5)
+      Expecto (>= 10.2.2 < 11.0) - restriction: >= net8.0
+      FSharp.Core (>= 7.0.200) - restriction: >= net8.0
+      Microsoft.Testing.Extensions.VSTestBridge (>= 1.9) - restriction: >= net8.0
+      Microsoft.Testing.Platform.MSBuild (>= 1.9) - restriction: >= net8.0

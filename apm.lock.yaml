@@ -1,0 +1,113 @@
+lockfile_version: '1'
+dependencies: []
+deployments:
+- kind: project-relative
+  target: claude
+  value: .claude/skills/fkafka
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/fkafka/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:930d55dffb4c543500cbc807099b1c8c7661f1627c4212a10059728a6f16a479
+- kind: project-relative
+  target: claude
+  value: .claude/skills/fkafka/references/anti-patterns.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:0cfd05e40ec29f76ed854ee7cdc17e93cde833fff745ba94643291d294500122
+- kind: project-relative
+  target: claude
+  value: .claude/skills/fkafka/references/examples.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:1da65202f565b27fbcb0145db9b66edab4eee964a03f8abaa90a352d19ff8595
+- kind: project-relative
+  target: claude
+  value: .claude/skills/fkafka/references/preferred-patterns.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:a6b4ed1d3c1bf5d7041e0cb7d5fb624fa03351d0dd9b6514b791b50c10294bb9
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/fkafka
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/fkafka/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:930d55dffb4c543500cbc807099b1c8c7661f1627c4212a10059728a6f16a479
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/fkafka/references/anti-patterns.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:0cfd05e40ec29f76ed854ee7cdc17e93cde833fff745ba94643291d294500122
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/fkafka/references/examples.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:1da65202f565b27fbcb0145db9b66edab4eee964a03f8abaa90a352d19ff8595
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/fkafka/references/preferred-patterns.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:a6b4ed1d3c1bf5d7041e0cb7d5fb624fa03351d0dd9b6514b791b50c10294bb9
+local_deployed_files:
+- .agents/skills/fkafka
+- .agents/skills/fkafka/SKILL.md
+- .agents/skills/fkafka/references/anti-patterns.md
+- .agents/skills/fkafka/references/examples.md
+- .agents/skills/fkafka/references/preferred-patterns.md
+- .claude/skills/fkafka
+- .claude/skills/fkafka/SKILL.md
+- .claude/skills/fkafka/references/anti-patterns.md
+- .claude/skills/fkafka/references/examples.md
+- .claude/skills/fkafka/references/preferred-patterns.md
+local_deployed_file_hashes:
+  .agents/skills/fkafka/SKILL.md: sha256:930d55dffb4c543500cbc807099b1c8c7661f1627c4212a10059728a6f16a479
+  .agents/skills/fkafka/references/anti-patterns.md: sha256:0cfd05e40ec29f76ed854ee7cdc17e93cde833fff745ba94643291d294500122
+  .agents/skills/fkafka/references/examples.md: sha256:1da65202f565b27fbcb0145db9b66edab4eee964a03f8abaa90a352d19ff8595
+  .agents/skills/fkafka/references/preferred-patterns.md: sha256:a6b4ed1d3c1bf5d7041e0cb7d5fb624fa03351d0dd9b6514b791b50c10294bb9
+  .claude/skills/fkafka/SKILL.md: sha256:930d55dffb4c543500cbc807099b1c8c7661f1627c4212a10059728a6f16a479
+  .claude/skills/fkafka/references/anti-patterns.md: sha256:0cfd05e40ec29f76ed854ee7cdc17e93cde833fff745ba94643291d294500122
+  .claude/skills/fkafka/references/examples.md: sha256:1da65202f565b27fbcb0145db9b66edab4eee964a03f8abaa90a352d19ff8595
+  .claude/skills/fkafka/references/preferred-patterns.md: sha256:a6b4ed1d3c1bf5d7041e0cb7d5fb624fa03351d0dd9b6514b791b50c10294bb9

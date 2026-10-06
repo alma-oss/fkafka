@@ -1,5 +1,7 @@
 # AGENTS.md — Alma.Kafka (fkafka)
 
+This repo ships Agent Skill for the `Alma.Kafka` library. Compatible agents discover it automatically; see `.agents/skills/fkafka/SKILL.md`.
+
 ## Project Purpose
 
 F# library (`Alma.Kafka`) for producing and consuming messages to/from Apache Kafka streams. Provides a typed, traced API with consumer lag monitoring, health checking, manual/auto commit modes, external checkpoint support, event schema definitions, metadata parsing, and trace propagation via Kafka headers. Published as a NuGet package.

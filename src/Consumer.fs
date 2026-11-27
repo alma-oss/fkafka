@@ -619,12 +619,12 @@ module Consumer =
     type ParseEvent<'Event> = TracedMessage<string> -> 'Event
     type ParseEventAsyncResult<'Event> = TracedMessage<string> -> AsyncResult<'Event, ConsumeError>
 
-    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): ConsumedResult<'Event> seq =
+    let consume (configuration: ConsumerConfiguration) (parse: ParseEvent<'Event>): seq<ConsumedResult<'Event>> =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.map (Parse.consumedMessage parse)
 
-    let consumeAsync (configuration: ConsumerConfiguration) (parse: ParseEventAsyncResult<'Event>): ConsumedAsyncResult<'Event> seq =
+    let consumeAsync (configuration: ConsumerConfiguration) (parse: ParseEventAsyncResult<'Event>): seq<ConsumedAsyncResult<'Event>> =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessageValue
         |> Seq.map (Parse.consumedMessageAsync parse)
@@ -634,12 +634,12 @@ module Consumer =
     type ParseEventMessage<'Event> = TracedMessage<Message> -> 'Event
     type ParseEventMessageAsyncResult<'Event> = TracedMessage<Message> -> AsyncResult<'Event, ConsumeError>
 
-    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): ConsumedResult<'Event> seq =
+    let consumeMessages (configuration: ConsumerConfiguration) (parse: ParseEventMessage<'Event>): seq<ConsumedResult<'Event>> =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
         |> Seq.map (Parse.consumedMessage parse)
 
-    let consumeMessagesAsync (configuration: ConsumerConfiguration) (parse: ParseEventMessageAsyncResult<'Event>): ConsumedAsyncResult<'Event> seq =
+    let consumeMessagesAsync (configuration: ConsumerConfiguration) (parse: ParseEventMessageAsyncResult<'Event>): seq<ConsumedAsyncResult<'Event>> =
         configuration
         |> Consume.seq Consumer.connect Consume.consumeMessage
         |> Seq.map (Parse.consumedMessageAsync parse)

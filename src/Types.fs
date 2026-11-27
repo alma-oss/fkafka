@@ -84,7 +84,7 @@ module HeaderKey =
 
 type Header = {
     Key: HeaderKey
-    Value: byte array
+    Value: byte[]
 }
 
 [<RequireQualifiedAccess>]
